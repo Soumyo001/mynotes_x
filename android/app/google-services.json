@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "291486476558",
+    "project_id": "mynotes-x",
+    "storage_bucket": "mynotes-x.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:291486476558:android:9b4274f3940e4deb0b4f5f",
+        "android_client_info": {
+          "package_name": "me.soumyo.mynotes"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDPhZ4Fap2KS8bfKQkW7OVArxASE436Rlc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
