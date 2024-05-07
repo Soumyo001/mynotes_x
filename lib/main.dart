@@ -1,13 +1,10 @@
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:mynotes/Pages/auth.dart';
-import 'package:mynotes/firebase_options.dart';
+import 'package:mynotes_x/Pages/auth.dart';
+import 'package:mynotes_x/services/auth/auth_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await AuthService.firebase().initializeApp();
   runApp(
     MaterialApp(
       title: 'My Notes',

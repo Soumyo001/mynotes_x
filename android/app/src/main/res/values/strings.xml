@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+<string name="app_name">mynotes_x</string>
+<string name="facebook_app_id">1225153425535408</string>
+<string name="fb_login_protocol_scheme">fb1225153425535408</string>
+<string name="facebook_client_token">c06fff35cb0abc8be08366875a07a3f8</string>
+</resources>

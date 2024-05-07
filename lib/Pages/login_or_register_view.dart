@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:mynotes/Pages/login_view.dart';
-import 'package:mynotes/Pages/registration_view.dart';
+import 'package:mynotes_x/Pages/login_view.dart';
+import 'package:mynotes_x/Pages/registration_view.dart';
 
 class LoginOrRegisterView extends StatefulWidget {
   const LoginOrRegisterView({super.key});

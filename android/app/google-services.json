@@ -12,7 +12,12 @@
           "package_name": "me.soumyo.mynotes"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "291486476558-p3njn0lher6qoitabrkad58lp5avffsq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDPhZ4Fap2KS8bfKQkW7OVArxASE436Rlc"
@@ -20,7 +25,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "291486476558-p3njn0lher6qoitabrkad58lp5avffsq.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "291486476558-76d4eriv0fevk5qnsooeqldi97emffmp.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "me.soumyo.mynotes"
+              }
+            }
+          ]
         }
       }
     }
