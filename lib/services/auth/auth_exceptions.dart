@@ -11,3 +11,7 @@ class UserNotLoggedInException implements Exception {
 class NoEmailChoosenException implements Exception {
   const NoEmailChoosenException();
 }
+
+class UserNotFoundException implements Exception {}
+
+class WeakPasswordException implements Exception {}
