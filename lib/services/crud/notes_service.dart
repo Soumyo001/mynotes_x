@@ -1,26 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:mynotes_x/services/crud/crud_exceptions.dart';
 import 'package:mynotes_x/utilities/constants.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
-
-class DatabaseAlreadyOpenException implements Exception {}
-
-class UnableToGetDocumentDirectoryException implements Exception {}
-
-class DatabaseNotOpenedException implements Exception {}
-
-class CouldNotDeleteUserException implements Exception {}
-
-class CouldNotDeleteNoteException implements Exception {}
-
-class UserDoesNotExistsException implements Exception {}
-
-class UserAlreadyExistsException implements Exception {}
-
-class CouldNotFindNoteException implements Exception {}
-
-class CouldNotUpdateNotesException implements Exception {}
 
 class NotesService {
   Database? _db;
