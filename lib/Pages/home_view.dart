@@ -1,16 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:mynotes_x/services/auth/auth_exceptions.dart';
 import 'package:mynotes_x/services/auth/auth_service.dart';
+import 'package:mynotes_x/services/crud/notes_service.dart';
 import 'package:mynotes_x/services/facebook_auth/facebook_auth_service.dart';
 import 'package:mynotes_x/services/google_auth/google_auth_service.dart';
 import 'package:mynotes_x/utilities/show_error_dialog.dart';
 
 enum MenuActions { logout }
 
-class HomePage extends StatelessWidget {
-  final user = AuthService.firebase().currentUser;
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
 
-  HomePage({super.key});
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  final user = AuthService.firebase().currentUser;
+  String get userEMail => user!.email!;
+  late final NotesService _notesService;
+
+  @override
+  void initState() {
+    _notesService = NotesService();
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    _notesService.close();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +60,7 @@ class HomePage extends StatelessWidget {
                       await showErrorDialog(
                         context: context,
                         messege:
-                            'Not from own class exception: ${e.toString()}',
+                            'Not from own class exceptions: ${e.toString()}',
                       );
                     }
                   }
@@ -66,11 +86,35 @@ class HomePage extends StatelessWidget {
           ),
         ],
       ),
-      body: Center(
-        child: Text(
-          'Logged in as : ${user!.email}',
-          style: const TextStyle(fontSize: 16),
-        ),
+      body: FutureBuilder(
+        future: _notesService.getOrCreateUser(email: userEMail),
+        builder: (context, snapshot) {
+          switch (snapshot.connectionState) {
+            case ConnectionState.done:
+              return StreamBuilder(
+                stream: _notesService.allNotes,
+                builder: (context, snapshot) {
+                  switch (snapshot.connectionState) {
+                    case ConnectionState.waiting:
+                      return Center(
+                        child: Text(
+                          'Logged in as: $userEMail',
+                          style: const TextStyle(color: Colors.black87),
+                        ),
+                      );
+                    default:
+                      return const CircularProgressIndicator(
+                        color: Colors.black87,
+                      );
+                  }
+                },
+              );
+            default:
+              return const CircularProgressIndicator(
+                color: Colors.black87,
+              );
+          }
+        },
       ),
     );
   }

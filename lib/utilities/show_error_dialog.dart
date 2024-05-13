@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-Future<void> showErrorDialog({
+Future<bool> showErrorDialog({
   required BuildContext context,
   required String messege,
 }) {
-  return showDialog(
+  return showDialog<bool>(
     context: context,
     builder: (context) {
       return AlertDialog(
@@ -22,7 +22,7 @@ Future<void> showErrorDialog({
         actions: [
           MaterialButton(
             onPressed: () {
-              Navigator.of(context).pop();
+              Navigator.of(context).pop(true);
             },
             child: const Text(
               'OK',
@@ -32,5 +32,5 @@ Future<void> showErrorDialog({
         ],
       );
     },
-  );
+  ).then((value) => value ?? true);
 }
