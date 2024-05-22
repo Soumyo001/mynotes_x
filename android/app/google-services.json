@@ -14,7 +14,15 @@
       },
       "oauth_client": [
         {
-          "client_id": "291486476558-p3njn0lher6qoitabrkad58lp5avffsq.apps.googleusercontent.com",
+          "client_id": "291486476558-b73b98pp45f9d1d0kjmgin674mr49out.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "me.soumyo.mynotes",
+            "certificate_hash": "7e92af1e09da5a889d5a474541a956efbeb6540f"
+          }
+        },
+        {
+          "client_id": "291486476558-7f2vs8379ofdhg4tr11g13fck11i2mri.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
@@ -27,7 +35,7 @@
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "291486476558-p3njn0lher6qoitabrkad58lp5avffsq.apps.googleusercontent.com",
+              "client_id": "291486476558-7f2vs8379ofdhg4tr11g13fck11i2mri.apps.googleusercontent.com",
               "client_type": 3
             },
             {

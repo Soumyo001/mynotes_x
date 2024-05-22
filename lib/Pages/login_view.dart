@@ -9,7 +9,7 @@ import 'package:mynotes_x/services/google_auth/google_auth_service.dart';
 
 class LoginView extends StatefulWidget {
   final void Function()? onTap;
-  const LoginView({super.key, required this.onTap});
+  const LoginView({super.key, this.onTap});
 
   @override
   State<LoginView> createState() => _LoginViewState();
@@ -61,25 +61,26 @@ class _LoginViewState extends State<LoginView> {
         return Container(
           margin: const EdgeInsets.symmetric(
             horizontal: 80.0,
-            vertical: 340.0,
+            vertical: 330.0,
           ),
           decoration: BoxDecoration(
-            color: Colors.grey.shade300,
+            color: Theme.of(context).colorScheme.inversePrimary,
+            borderRadius: BorderRadius.circular(16),
           ),
-          child: const Center(
+          child: Center(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 CircularProgressIndicator(
-                  color: Colors.black87,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
-                SizedBox(
+                const SizedBox(
                   width: 10,
                 ),
                 Text(
                   'Loading...',
                   style: TextStyle(
-                    color: Colors.black87,
+                    color: Theme.of(context).colorScheme.primary,
                     fontSize: 16,
                   ),
                 ),
@@ -175,7 +176,7 @@ class _LoginViewState extends State<LoginView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[300],
+      backgroundColor: Theme.of(context).colorScheme.background,
       body: SafeArea(
         // SafeArea(child : Center(child : Column(children)))
         child: Center(
@@ -184,9 +185,10 @@ class _LoginViewState extends State<LoginView> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 //Icon
-                const Icon(
+                Icon(
                   Icons.lock,
                   size: 85,
+                  color: Theme.of(context).colorScheme.inversePrimary,
                 ),
 
                 const SizedBox(height: 15),
@@ -194,7 +196,7 @@ class _LoginViewState extends State<LoginView> {
                 Text(
                   'User Login',
                   style: TextStyle(
-                    color: Colors.grey[700],
+                    color: Theme.of(context).colorScheme.inversePrimary,
                     fontSize: 16,
                   ),
                 ),
@@ -211,6 +213,7 @@ class _LoginViewState extends State<LoginView> {
                   keyboardType: TextInputType.emailAddress,
                   horizontalPadding: 25.0,
                   verticalPadding: 0.0,
+                  maxLines: 1,
                 ),
 
                 const SizedBox(
@@ -226,15 +229,17 @@ class _LoginViewState extends State<LoginView> {
                   hintText: 'Password',
                   horizontalPadding: 25.0,
                   verticalPadding: 0.0,
+                  maxLines: 1,
                   suffixIcon: InkWell(
                     onTap: () {
                       setState(() {
                         obscureText = !obscureText;
                       });
                     },
-                    child: Icon((obscureText
-                        ? Icons.visibility
-                        : Icons.visibility_off)),
+                    child: Icon(
+                      (obscureText ? Icons.visibility : Icons.visibility_off),
+                      color: Theme.of(context).colorScheme.inversePrimary,
+                    ),
                   ),
                 ),
 
@@ -252,7 +257,7 @@ class _LoginViewState extends State<LoginView> {
                       Text(
                         'forgot password?',
                         style: TextStyle(
-                          color: Colors.grey.shade600,
+                          color: Theme.of(context).colorScheme.inversePrimary,
                         ),
                       ),
                     ],
@@ -281,20 +286,22 @@ class _LoginViewState extends State<LoginView> {
                       Expanded(
                         child: Divider(
                           thickness: 0.5,
-                          color: Colors.grey[400],
+                          color: Theme.of(context).colorScheme.tertiary,
                         ),
                       ),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 10.0),
                         child: Text(
                           'Or continue with',
-                          style: TextStyle(color: Colors.grey[700]),
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.tertiary,
+                          ),
                         ),
                       ),
                       Expanded(
                         child: Divider(
                           thickness: 0.5,
-                          color: Colors.grey[400],
+                          color: Theme.of(context).colorScheme.tertiary,
                         ),
                       ),
                     ],
@@ -331,7 +338,9 @@ class _LoginViewState extends State<LoginView> {
                   children: [
                     Text(
                       'not a member?',
-                      style: TextStyle(color: Colors.grey[700]),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.inversePrimary,
+                      ),
                     ),
                     const SizedBox(
                       width: 4,

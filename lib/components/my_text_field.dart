@@ -14,6 +14,8 @@ class MyTextField extends StatefulWidget {
   final InputBorder? errorBorder;
   final InputBorder? focusedErrorBorder;
   final TextStyle? errorStyle;
+  final int? maxLines;
+  final TextStyle? textInputStyle;
 
   const MyTextField({
     super.key,
@@ -24,6 +26,7 @@ class MyTextField extends StatefulWidget {
     required this.hintText,
     required this.horizontalPadding,
     required this.verticalPadding,
+    required this.maxLines,
     this.keyboardType,
     this.prefixIcon,
     this.suffixIcon,
@@ -32,6 +35,7 @@ class MyTextField extends StatefulWidget {
     this.errorBorder,
     this.focusedErrorBorder,
     this.errorStyle,
+    this.textInputStyle,
   });
 
   @override
@@ -47,13 +51,16 @@ class _MyTextFieldState extends State<MyTextField> {
         vertical: widget.verticalPadding,
       ),
       child: TextField(
+        style: widget.textInputStyle,
         onChanged: widget.onChanged,
         controller: widget.controller,
         autocorrect: widget.autoCorrect,
+        maxLines: widget.maxLines,
         obscureText: widget.obscureText,
         enableSuggestions: widget.enableSuggestions,
         keyboardType: widget.keyboardType,
-        cursorColor: Colors.grey.shade600,
+        cursorColor: Theme.of(context).colorScheme.inversePrimary,
+        cursorWidth: 1.0,
         decoration: InputDecoration(
           errorText: widget.errorText,
           errorStyle: widget.errorStyle,
@@ -61,17 +68,20 @@ class _MyTextFieldState extends State<MyTextField> {
           focusedErrorBorder: widget.focusedErrorBorder,
           prefixIcon: widget.prefixIcon,
           suffixIcon: widget.suffixIcon,
-          enabledBorder: const OutlineInputBorder(
-            borderSide: BorderSide(color: Colors.white),
+          enabledBorder: OutlineInputBorder(
+            borderSide:
+                BorderSide(color: Theme.of(context).colorScheme.secondary),
+            borderRadius: BorderRadius.circular(8),
           ),
           focusedBorder: OutlineInputBorder(
-            borderSide: BorderSide(color: Colors.grey.shade400),
+            borderSide: const BorderSide(color: Colors.white),
+            borderRadius: BorderRadius.circular(8),
           ),
-          fillColor: Colors.grey.shade200,
+          fillColor: Theme.of(context).colorScheme.primary,
           filled: true,
           hintText: widget.hintText,
           hintStyle: TextStyle(
-            color: Colors.grey.shade400,
+            color: Colors.grey.shade500,
             fontWeight: FontWeight.w300,
           ),
         ),

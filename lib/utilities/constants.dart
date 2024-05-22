@@ -23,3 +23,22 @@ CREATE TABLE IF NOT EXISTS "notes" (
 	PRIMARY KEY("note_id" AUTOINCREMENT)
 );
 ''';
+const createNotesRoute = '/note/create_note/';
+const loginRoute = '/login/';
+const homeRoute = '/home/home_page/';
+
+const notificationNoRepeat = 'No Repeat';
+const notificationRepeatDaily = 'Repeat Daily';
+const notificationRepeatWeekly = 'Repeat Weekly';
+
+const saturday = 'saturday';
+const sunday = 'sunday';
+const monday = 'monday';
+const tuesday = 'tuesday';
+const wednesday = 'wednesday';
+const thursday = 'thursday';
+const friday = 'friday';
+
+const weekTag = 'week';
+const tagTag = 'tag';
+const checkedTag = 'isChecked';

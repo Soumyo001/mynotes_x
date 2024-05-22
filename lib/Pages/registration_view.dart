@@ -9,7 +9,7 @@ import 'package:mynotes_x/services/google_auth/google_auth_service.dart';
 
 class RegisterView extends StatefulWidget {
   final void Function()? onTap;
-  const RegisterView({super.key, required this.onTap});
+  const RegisterView({super.key, this.onTap});
 
   @override
   State<RegisterView> createState() => _RegisterViewState();
@@ -87,6 +87,7 @@ class _RegisterViewState extends State<RegisterView> {
           ),
           decoration: BoxDecoration(
             color: Colors.grey.shade300,
+            borderRadius: BorderRadius.circular(16),
           ),
           child: const Center(
             child: Row(
@@ -224,7 +225,7 @@ class _RegisterViewState extends State<RegisterView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[300],
+      backgroundColor: Theme.of(context).colorScheme.background,
       body: SafeArea(
         // SafeArea(child : Center(child : Column(children)))
         child: Center(
@@ -252,6 +253,7 @@ class _RegisterViewState extends State<RegisterView> {
 
                 //text_field email
                 MyTextField(
+                  maxLines: 1,
                   onChanged: (value) {
                     if (!emailPattern.hasMatch(value) && value.isNotEmpty) {
                       setState(() {
@@ -296,6 +298,7 @@ class _RegisterViewState extends State<RegisterView> {
 
                 //text_field password
                 MyTextField(
+                  maxLines: 1,
                   suffixIcon: InkWell(
                     onTap: () {
                       setState(() {
@@ -304,7 +307,7 @@ class _RegisterViewState extends State<RegisterView> {
                     },
                     child: Icon(
                       (obscureText ? Icons.visibility : Icons.visibility_off),
-                      color: Colors.grey.shade900,
+                      color: Theme.of(context).colorScheme.inversePrimary,
                     ),
                   ),
                   onChanged: (value) {
@@ -367,6 +370,7 @@ class _RegisterViewState extends State<RegisterView> {
 
                 //text_field confirm password
                 MyTextField(
+                  maxLines: 1,
                   suffixIcon: InkWell(
                     onTap: () {
                       setState(() {
@@ -377,24 +381,29 @@ class _RegisterViewState extends State<RegisterView> {
                       (obscureConfirmText
                           ? Icons.visibility
                           : Icons.visibility_off),
-                      color: Colors.grey.shade900,
+                      color: Theme.of(context).colorScheme.inversePrimary,
                     ),
                   ),
                   onChanged: (value) {
                     if (_password.text != value && value.isNotEmpty) {
-                      setState(() {
-                        errorTextC = 'Passwords doesn\'t match';
-                        errorBorderC = OutlineInputBorder(
-                          borderSide: BorderSide(
-                            color: Colors.redAccent.shade200.withOpacity(0.8),
-                          ),
-                        );
-                        errorFocusedBorderC = OutlineInputBorder(
-                          borderSide: BorderSide(
+                      setState(
+                        () {
+                          errorTextC = 'Passwords doesn\'t match';
+                          errorBorderC = OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: Colors.redAccent.shade200.withOpacity(0.8),
+                            ),
+                          );
+                          errorFocusedBorderC = OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: Colors.red.shade900,
+                            ),
+                          );
+                          errorTextStyleC = TextStyle(
                             color: Colors.red.shade900,
-                          ),
-                        );
-                      });
+                          );
+                        },
+                      );
                     } else {
                       setState(() {
                         errorTextC = '';
@@ -435,20 +444,21 @@ class _RegisterViewState extends State<RegisterView> {
                       Expanded(
                         child: Divider(
                           thickness: 0.5,
-                          color: Colors.grey[400],
+                          color: Theme.of(context).colorScheme.tertiary,
                         ),
                       ),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 10.0),
                         child: Text(
                           'Or continue with',
-                          style: TextStyle(color: Colors.grey[700]),
+                          style: TextStyle(
+                              color: Theme.of(context).colorScheme.tertiary),
                         ),
                       ),
                       Expanded(
                         child: Divider(
                           thickness: 0.5,
-                          color: Colors.grey[400],
+                          color: Theme.of(context).colorScheme.tertiary,
                         ),
                       ),
                     ],
@@ -485,7 +495,8 @@ class _RegisterViewState extends State<RegisterView> {
                   children: [
                     Text(
                       'Already a user ?',
-                      style: TextStyle(color: Colors.grey[700]),
+                      style: TextStyle(
+                          color: Theme.of(context).colorScheme.inversePrimary),
                     ),
                     const SizedBox(
                       width: 4,

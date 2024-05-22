@@ -256,7 +256,8 @@ class NotesService {
     }
     final updatedNote = await getNote(id: noteToBeUpdated.noteID);
     _notes.removeWhere(
-        (databaseNote) => databaseNote.noteID == updatedNote.noteID);
+      (databaseNote) => databaseNote.noteID == updatedNote.noteID,
+    );
     _notes.add(updatedNote);
     _noteStreamController.add(_notes);
     return updatedNote;

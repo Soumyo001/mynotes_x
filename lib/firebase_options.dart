@@ -63,6 +63,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '291486476558',
     projectId: 'mynotes-x',
     storageBucket: 'mynotes-x.appspot.com',
+    androidClientId: '291486476558-b73b98pp45f9d1d0kjmgin674mr49out.apps.googleusercontent.com',
     iosClientId: '291486476558-76d4eriv0fevk5qnsooeqldi97emffmp.apps.googleusercontent.com',
     iosBundleId: 'me.soumyo.mynotes',
   );
