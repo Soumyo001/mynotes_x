@@ -3,6 +3,7 @@ import 'package:mynotes_x/Pages/auth.dart';
 import 'package:mynotes_x/Pages/create_notes_view.dart';
 import 'package:mynotes_x/Pages/home_view.dart';
 import 'package:mynotes_x/Pages/login_view.dart';
+import 'package:mynotes_x/Pages/show_tags.dart';
 import 'package:mynotes_x/notifiers/list_notifier.dart';
 import 'package:mynotes_x/services/auth/auth_service.dart';
 import 'package:mynotes_x/services/notification_services/notification_service.dart';
@@ -30,6 +31,7 @@ void main() async {
           createNotesRoute: (context) => const CreateNewNote(),
           loginRoute: (context) => const LoginView(),
           homeRoute: (context) => const HomePage(),
+          showTagsRoute: (context) => const UserTags(),
         },
       ),
     ),

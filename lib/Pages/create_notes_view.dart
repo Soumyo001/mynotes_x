@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:mynotes_x/components/alert_dialog_content_button.dart';
 import 'package:mynotes_x/components/input_check_box.dart';
 import 'package:mynotes_x/components/my_text_field.dart';
@@ -12,10 +13,12 @@ import 'package:mynotes_x/components/remainder_widget.dart';
 import 'package:mynotes_x/components/text_with_checkbox_from_list.dart';
 import 'package:mynotes_x/notifiers/list_notifier.dart';
 import 'package:mynotes_x/services/auth/auth_service.dart';
+import 'package:mynotes_x/services/crud/crud_exceptions.dart';
 import 'package:mynotes_x/services/crud/notes_service.dart';
 import 'package:mynotes_x/services/notification_services/notification_service.dart';
 import 'package:mynotes_x/utilities/constants.dart';
 import 'package:provider/provider.dart';
+import 'dart:developer' as dev;
 
 class CreateNewNote extends StatefulWidget {
   const CreateNewNote({super.key});
@@ -26,11 +29,13 @@ class CreateNewNote extends StatefulWidget {
 
 class _CreateNewNoteState extends State<CreateNewNote> {
   DatabaseNotes? _notes;
+  DatabaseUser? _user;
   File? _image;
-  String? _imagePath;
+  String? _imagePath = '';
   Color? _color;
   bool _isList = false;
   bool _setRemainder = false;
+  bool _hasTag = false;
   String? month, week;
   String? repeat;
   late final ListNotifier listNotifier;
@@ -98,7 +103,7 @@ class _CreateNewNoteState extends State<CreateNewNote> {
     return showDialog<bool>(
       context: context,
       builder: (context) {
-        return AlertDialog(
+        return AlertDialog.adaptive(
           icon: Icon(
             Icons.info,
             color: Theme.of(context).colorScheme.inversePrimary,
@@ -137,12 +142,13 @@ class _CreateNewNoteState extends State<CreateNewNote> {
     if (note == null) {
       return;
     }
-    final text = _textEditingController.text;
     final tittle = _tittleEditingController.text;
+    final text = _textEditingController.text;
     await _notesService.updateNote(
       noteToBeUpdated: note,
       tittle: tittle,
       text: text,
+      imagePath: _imagePath,
     );
   }
 
@@ -175,7 +181,9 @@ class _CreateNewNoteState extends State<CreateNewNote> {
     final note = _notes;
     final tittle = _tittleEditingController.text;
     final text = _textEditingController.text;
-    if (text.isEmpty && tittle.isEmpty && note != null) {
+    if ((text.isEmpty || _categories.isEmpty) &&
+        tittle.isEmpty &&
+        note != null) {
       await _notesService.deleteNote(
         id: note.noteID,
       );
@@ -191,8 +199,9 @@ class _CreateNewNoteState extends State<CreateNewNote> {
         noteToBeUpdated: note,
         tittle: tittle,
         text: text,
+        imagePath: _imagePath,
       );
-    }
+    } else if (_categories.isNotEmpty && note != null) {}
   }
 
   Future<void> _photoPicker(ImageSource source) async {
@@ -201,7 +210,11 @@ class _CreateNewNoteState extends State<CreateNewNote> {
         source: source,
       );
       if (imagePickerGallery == null) {
-        throw const CouldNotPickImageException();
+        if (source == ImageSource.gallery) {
+          throw const CouldNotPickImageException();
+        } else {
+          throw const CouldNotCaptureImageException();
+        }
       }
       final imagePath = imagePickerGallery.path;
       _imagePath = imagePath;
@@ -236,10 +249,11 @@ class _CreateNewNoteState extends State<CreateNewNote> {
     if (_imagePath != null) {
       setState(() {
         imageCache.clear();
+        _imagePath = '';
         _image = null;
       });
     } else {
-      _showExceptionDialog(
+      await _showExceptionDialog(
         tittle: 'Pick an image',
         content: 'You didn\'t pick an image',
       );
@@ -293,7 +307,7 @@ class _CreateNewNoteState extends State<CreateNewNote> {
     setState(() {
       _foundTags = _tagSuggestions
           .where((element) =>
-              (element['tag'] as String).toLowerCase().contains(value))
+              (element[tagTag] as String).toLowerCase().contains(value))
           .toList();
     });
   }
@@ -650,7 +664,7 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                   setState(() {
                     repeat = notificationRepeatDaily;
                     for (var week in _weeks) {
-                      week['isChecked'] = false;
+                      week[checkedTag] = false;
                     }
                   });
                   Navigator.of(context).pop();
@@ -676,18 +690,21 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                                 return TextWithCheckBox(
                                   value: value,
                                   icon: false,
+                                  textLeftPadding: 10,
+                                  isMainIndexController: false,
                                   onChanged: (p0) {
                                     setState(() {
-                                      value['isChecked'] = p0!;
+                                      value[checkedTag] = p0!;
                                     });
                                   },
-                                  index: 'week',
-                                  secondaryIndex: 'isChecked',
+                                  index: weekTag,
+                                  secondaryIndex: checkedTag,
                                 );
                               }).toList(),
                             ),
                             actions: [
                               CupertinoDialogAction(
+                                isDefaultAction: true,
                                 onPressed: () {
                                   Navigator.of(context).pop();
                                 },
@@ -744,6 +761,7 @@ class _CreateNewNoteState extends State<CreateNewNote> {
     _tagTextEditingController.dispose();
     listNotifier.removeListener(_listener);
     listNotifier.items.clear();
+    _categories.clear();
     super.dispose();
   }
 
@@ -768,7 +786,6 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                       color: Theme.of(context).colorScheme.inversePrimary,
                     ),
                     onPressed: () {
-                      _categories.clear();
                       Navigator.of(context).pop();
                     }),
                 foregroundColor: Colors.transparent,
@@ -799,6 +816,8 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                             actions: [
                               ElevatedButton.icon(
                                 style: ElevatedButton.styleFrom(
+                                  foregroundColor:
+                                      Theme.of(context).colorScheme.primary,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),
@@ -822,6 +841,8 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                               ),
                               ElevatedButton.icon(
                                 style: ElevatedButton.styleFrom(
+                                  foregroundColor:
+                                      Theme.of(context).colorScheme.primary,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),
@@ -860,6 +881,13 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                         builder: (context) {
                           return StatefulBuilder(
                             builder: (context, setState) {
+                              setState(() {
+                                _hasTag = true;
+                                if (listNotifier.items.isEmpty) {
+                                  _hasTag = false;
+                                }
+                                dev.log(_hasTag.toString());
+                              });
                               return AlertDialog.adaptive(
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(13),
@@ -897,17 +925,11 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                                           ),
                                           enabledBorder:
                                               const OutlineInputBorder(
-                                            borderSide: BorderSide(
-                                              width: 0,
-                                              color: Colors.transparent,
-                                            ),
+                                            borderSide: BorderSide.none,
                                           ),
                                           focusedBorder:
                                               const OutlineInputBorder(
-                                            borderSide: BorderSide(
-                                              color: Colors.transparent,
-                                              width: 0,
-                                            ),
+                                            borderSide: BorderSide.none,
                                           ),
                                         ),
                                       ),
@@ -921,17 +943,20 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                                             final value = e.value;
                                             return TextWithCheckBox(
                                               value: value,
+                                              textLeftPadding: 0,
                                               icon: true,
-                                              index: 'tag',
-                                              secondaryIndex: 'isChecked',
+                                              isMainIndexController: false,
+                                              index: tagTag,
+                                              secondaryIndex: checkedTag,
                                               onChanged: (p0) {
                                                 setState(() {
-                                                  value['isChecked'] = p0!;
-                                                  listNotifier
-                                                      .removeUnCheckedItems();
-                                                  if (value['isChecked'] ==
+                                                  value[checkedTag] = p0!;
+                                                  if (value[checkedTag] ==
                                                       true) {
                                                     listNotifier.addItem(value);
+                                                  } else {
+                                                    listNotifier
+                                                        .removeUnCheckedItems();
                                                   }
                                                 });
                                               },
@@ -962,8 +987,8 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                                                 setState(() {
                                                   _tagSuggestions.add(
                                                     {
-                                                      'isChecked': true,
-                                                      'tag':
+                                                      checkedTag: true,
+                                                      tagTag:
                                                           _tagTextEditingController
                                                               .text,
                                                     },
@@ -1029,49 +1054,92 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                 onPressed: () async {
                   _dateTime = _dateTime!.copyWith(
                       hour: _timeOfDay!.hour, minute: _timeOfDay!.minute);
-                  if (repeat == notificationNoRepeat) {
-                    await NotificationService.getInstance().showNotification(
-                      id: 0,
-                      title: _tittleEditingController.text,
-                      scheduledDate: _dateTime!,
-                    );
-                  } else if (repeat == notificationRepeatDaily) {
-                    await NotificationService.getInstance()
-                        .showNotificationDaily(
-                      id: 0,
-                      payload: 'payload here',
-                      title: _tittleEditingController.text,
-                      scheduledDate: _dateTime!,
-                    );
-                  } else if (repeat == notificationRepeatWeekly) {
-                    List<int> days = [];
-                    for (var i in _weeks) {
-                      if (i['isChecked'] == true) {
-                        if (i['week'] == 'monday') {
-                          days.add(DateTime.monday);
-                        } else if (i[weekTag] == tuesday) {
-                          days.add(DateTime.tuesday);
-                        } else if (i[weekTag] == wednesday) {
-                          days.add(DateTime.wednesday);
-                        } else if (i[weekTag] == thursday) {
-                          days.add(DateTime.thursday);
-                        } else if (i[weekTag] == friday) {
-                          days.add(DateTime.friday);
-                        } else if (i[weekTag] == saturday) {
-                          days.add(DateTime.saturday);
-                        } else if (i[weekTag] == sunday) {
-                          days.add(DateTime.sunday);
+                  _user = await _notesService.getUser(
+                    email: AuthService.firebase().currentUser!.email!,
+                  );
+                  if (_isList) {
+                    String text = '';
+                    for (var i in _categories) {
+                      if ((i[controllerTag] as TextEditingController)
+                          .text
+                          .isNotEmpty) {
+                        text +=
+                            (i[controllerTag] as TextEditingController).text;
+                        text += ' ';
+                        text += (i[checkedTag] as bool).toString();
+                        text += '\n';
+                      } else {
+                        break;
+                      }
+                    }
+                    dev.log(text);
+                  }
+                  if (_hasTag) {
+                    for (final i in _foundTags) {
+                      if ((i[checkedTag] as bool) == true) {
+                        try {
+                          final test = await _notesService.createTag(
+                            user: _user!,
+                            note: _notes!,
+                            tagName: (i[tagTag] as String),
+                          );
+                          dev.log('test: ${test.toString()}');
+                        } on TagExistsForSpecificNote {
+                          //do nothing
                         }
                       }
                     }
-
-                    await NotificationService.getInstance()
-                        .showNotificationWeekly(
-                      id: 0,
-                      title: _tittleEditingController.text,
-                      scheduledDate: _dateTime!,
-                      days: days,
-                    );
+                    final e = await _notesService.getTagsForSpecificNote(
+                        user: _user!, notes: _notes!);
+                    dev.log(e.toList().toString());
+                  }
+                  if (_setRemainder) {
+                    if (repeat == notificationNoRepeat) {
+                      await NotificationService.getInstance().showNotification(
+                        id: 0,
+                        title: _tittleEditingController.text,
+                        body: DateFormat('EEEE', 'en_US').format(_dateTime!),
+                        scheduledDate: _dateTime!,
+                      );
+                    } else if (repeat == notificationRepeatDaily) {
+                      await NotificationService.getInstance()
+                          .showNotificationDaily(
+                        id: 0,
+                        payload: 'payload here',
+                        title: _tittleEditingController.text,
+                        body: DateFormat('EEEE', 'en_US').format(_dateTime!),
+                        scheduledDate: _dateTime!,
+                      );
+                    } else if (repeat == notificationRepeatWeekly) {
+                      List<int> days = [];
+                      for (var i in _weeks) {
+                        if (i['isChecked'] == true) {
+                          if (i['week'] == 'monday') {
+                            days.add(DateTime.monday);
+                          } else if (i[weekTag] == tuesday) {
+                            days.add(DateTime.tuesday);
+                          } else if (i[weekTag] == wednesday) {
+                            days.add(DateTime.wednesday);
+                          } else if (i[weekTag] == thursday) {
+                            days.add(DateTime.thursday);
+                          } else if (i[weekTag] == friday) {
+                            days.add(DateTime.friday);
+                          } else if (i[weekTag] == saturday) {
+                            days.add(DateTime.saturday);
+                          } else if (i[weekTag] == sunday) {
+                            days.add(DateTime.sunday);
+                          }
+                        }
+                      }
+                      await NotificationService.getInstance()
+                          .showNotificationWeekly(
+                        id: 0,
+                        title: _tittleEditingController.text,
+                        body: DateFormat('EEEE', 'en_US').format(_dateTime!),
+                        scheduledDate: _dateTime!,
+                        days: days,
+                      );
+                    }
                   }
                   if (context.mounted) {
                     Navigator.of(context).pop();
@@ -1152,23 +1220,42 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                                       (e) {
                                         int index = e.key;
                                         final value = e.value;
-                                        value['index'] = index;
-                                        return TextFieldCheckBox(
-                                          favourite: value,
-                                          onPressed: () {
-                                            setState(() {
-                                              (_categories[index]['controller']
-                                                      as TextEditingController)
-                                                  .dispose();
-                                              _categories.removeAt(index);
-                                            });
-                                          },
-                                          onChanged: (p0) {
-                                            setState(() {
-                                              value['isChecked'] = p0!;
-                                            });
-                                          },
-                                        );
+                                        if (value[checkedTag] == false) {
+                                          return Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 16.0,
+                                            ),
+                                            child: TextFieldCheckBox(
+                                              favourite: value,
+                                              onPressed: () {
+                                                setState(() {
+                                                  (_categories[index]
+                                                              [controllerTag]
+                                                          as TextEditingController)
+                                                      .dispose();
+                                                  _categories.removeAt(index);
+                                                });
+                                              },
+                                              onChanged: (p0) {
+                                                setState(() {
+                                                  value[checkedTag] = p0!;
+                                                  if (value[checkedTag] ==
+                                                      true) {
+                                                    if ((value[controllerTag]
+                                                            as TextEditingController)
+                                                        .text
+                                                        .isEmpty) {
+                                                      _categories
+                                                          .removeAt(index);
+                                                    }
+                                                  }
+                                                });
+                                              },
+                                            ),
+                                          );
+                                        } else {
+                                          return const SizedBox.shrink();
+                                        }
                                       },
                                     ).toList(),
                                   ),
@@ -1185,8 +1272,8 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                                       setState(() {
                                         _categories.add(
                                           {
-                                            'isChecked': false,
-                                            'controller':
+                                            checkedTag: false,
+                                            controllerTag:
                                                 TextEditingController(),
                                           },
                                         );
@@ -1203,6 +1290,38 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                                             .withOpacity(0.5),
                                       ),
                                     ),
+                                  ),
+                                  Column(
+                                    children: _categories.asMap().entries.map(
+                                      (e) {
+                                        final value = e.value;
+                                        if (value[checkedTag] == true) {
+                                          return Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 16.0,
+                                            ),
+                                            child: TextWithCheckBox(
+                                              value: value,
+                                              textLeftPadding: 20,
+                                              onChanged: (p0) {
+                                                setState(() {
+                                                  value[checkedTag] = p0!;
+                                                });
+                                              },
+                                              index: controllerTag,
+                                              secondaryIndex: checkedTag,
+                                              isMainIndexController: true,
+                                              icon: false,
+                                              textDecoration:
+                                                  TextDecoration.lineThrough,
+                                              fontSize: 14.3,
+                                            ),
+                                          );
+                                        } else {
+                                          return const SizedBox.shrink();
+                                        }
+                                      },
+                                    ).toList(),
                                   ),
                                 ],
                               )),
@@ -1275,7 +1394,7 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                           ),
                         ),
                         const SizedBox(
-                          height: 40,
+                          height: 20,
                         ),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -1294,10 +1413,12 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                                 ],
                               ),
                               Flexible(
-                                child: (listNotifier.items.isNotEmpty
+                                child: (listNotifier.items.isNotEmpty && _hasTag
                                     ? Wrap(
                                         spacing: 0,
                                         runSpacing: 0,
+                                        crossAxisAlignment:
+                                            WrapCrossAlignment.start,
                                         direction: Axis.horizontal,
                                         children: listNotifier.items
                                             .map(
@@ -1305,6 +1426,7 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                                                 constraints:
                                                     const BoxConstraints(
                                                   maxWidth: 150,
+                                                  maxHeight: 25,
                                                 ),
                                                 child: Chip(
                                                   labelPadding: EdgeInsets.zero,
@@ -1323,18 +1445,22 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                                                           .inversePrimary
                                                           .withOpacity(0.8),
                                                     ),
+                                                    softWrap: true,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
                                                   ),
                                                 ),
                                               ),
                                             )
                                             .toList(),
                                       )
-                                    : const SizedBox(
-                                        height: 0,
-                                      )),
+                                    : const SizedBox.shrink()),
                               ),
                             ],
                           ),
+                        ),
+                        const SizedBox(
+                          height: 10,
                         ),
                       ],
                     ),
@@ -1363,40 +1489,3 @@ class CouldNotCaptureImageException implements Exception {
   final code = 'could not capture image';
   const CouldNotCaptureImageException();
 }
-
-/*Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            IconButton(
-                                              onPressed: () {},
-                                              icon: Icon(
-                                                Icons.remove_circle_sharp,
-                                                color: Theme.of(context)
-                                                    .colorScheme
-                                                    .inversePrimary,
-                                              ),
-                                            ),
-                                            SizedBox(
-                                              width: 300,
-                                              child: CheckboxListTile(
-                                                activeColor: Theme.of(context)
-                                                    .colorScheme
-                                                    .inversePrimary,
-                                                checkboxShape:
-                                                    RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(6),
-                                                ),
-                                                title: favourite['textField'],
-                                                value: favourite['isChecked'],
-                                                onChanged: (value) {
-                                                  setState(() {
-                                                    favourite['isChecked'] =
-                                                        value;
-                                                  });
-                                                },
-                                              ),
-                                            ),
-                                          ],
-                                        ); */

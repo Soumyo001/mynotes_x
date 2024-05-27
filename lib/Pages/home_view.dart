@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mynotes_x/Pages/show_tags.dart';
 import 'package:mynotes_x/components/drawer.dart';
 import 'package:mynotes_x/components/drawer_tile.dart';
 import 'package:mynotes_x/services/auth/auth_exceptions.dart';
@@ -29,18 +30,13 @@ class _HomePageState extends State<HomePage> {
   final user = AuthService.firebase().currentUser;
   String get userEmail => user!.email!;
   late final NotesService _notesService;
+  DatabaseUser? databaseUser;
 
   @override
   void initState() {
     _notesService = NotesService();
 
     super.initState();
-  }
-
-  @override
-  void dispose() {
-    _notesService.close();
-    super.dispose();
   }
 
   @override
@@ -72,7 +68,7 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           icon: Icon(
-            Icons.add,
+            Icons.add_rounded,
             color: Theme.of(context).colorScheme.inversePrimary,
           ),
         ),
@@ -127,19 +123,39 @@ class _HomePageState extends State<HomePage> {
                 const SizedBox(
                   height: 30,
                 ),
-                Icon(
-                  Icons.tag,
-                  color: Theme.of(context).colorScheme.inversePrimary,
+                Center(
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.tag,
+                        color: Theme.of(context).colorScheme.inversePrimary,
+                      ),
+                      const SizedBox(
+                        height: 15,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 118),
+                        child: Divider(
+                          thickness: 1,
+                          color: Theme.of(context).colorScheme.inversePrimary,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(
-                  height: 15,
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 118),
-                  child: Divider(
-                    thickness: 1,
+                DrawerTile(
+                  title: 'Tags',
+                  leadingIcon: Icon(
+                    Icons.local_offer_rounded,
                     color: Theme.of(context).colorScheme.inversePrimary,
                   ),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => UserTags(user: databaseUser!),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
@@ -150,128 +166,139 @@ class _HomePageState extends State<HomePage> {
           builder: (context, snapshot) {
             switch (snapshot.connectionState) {
               case ConnectionState.done:
-                return StreamBuilder(
-                  stream: _notesService.allNotes,
-                  builder: (context, snapshot) {
-                    switch (snapshot.connectionState) {
-                      case ConnectionState.waiting:
-                      case ConnectionState.active:
-                        return SafeArea(
-                          child: Center(
-                            child: Column(
-                              children: [
-                                const SizedBox(
-                                  height: 15,
-                                ),
-                                TabBar(
-                                  indicatorColor: Colors.transparent,
-                                  indicatorSize: TabBarIndicatorSize.tab,
-                                  indicator: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(50.0),
-                                    color:
-                                        Theme.of(context).colorScheme.primary,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .primary
-                                            .withOpacity(0.3),
-                                        spreadRadius: 1.0,
-                                        blurRadius: 15.0,
-                                        offset: const Offset(5.0, 6.0),
+                if (snapshot.hasData) {
+                  databaseUser = snapshot.data as DatabaseUser;
+                  return StreamBuilder(
+                    stream: _notesService.allNotes,
+                    builder: (context, snapshot) {
+                      switch (snapshot.connectionState) {
+                        case ConnectionState.waiting:
+                        case ConnectionState.active:
+                          return SafeArea(
+                            child: Center(
+                              child: Column(
+                                children: [
+                                  const SizedBox(
+                                    height: 15,
+                                  ),
+                                  TabBar(
+                                    indicatorColor: Colors.transparent,
+                                    indicatorSize: TabBarIndicatorSize.tab,
+                                    indicator: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(50.0),
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .primary
+                                              .withOpacity(0.3),
+                                          spreadRadius: 1.0,
+                                          blurRadius: 15.0,
+                                          offset: const Offset(5.0, 6.0),
+                                        ),
+                                        BoxShadow(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .inversePrimary
+                                              .withOpacity(0.13),
+                                          spreadRadius: 1.0,
+                                          blurRadius: 15.0,
+                                          offset: const Offset(-5.0, -4.0),
+                                        ),
+                                      ],
+                                    ),
+                                    labelStyle: TextStyle(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .inversePrimary,
+                                      fontSize: 14,
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10.0,
+                                    ),
+                                    dividerHeight: 0,
+                                    unselectedLabelStyle: TextStyle(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .inversePrimary,
+                                      fontSize: 13,
+                                    ),
+                                    tabAlignment: TabAlignment.fill,
+                                    tabs: [
+                                      Tab(
+                                        child: Center(
+                                          child: Text(
+                                            'All',
+                                            style: TextStyle(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .inversePrimary,
+                                            ),
+                                          ),
+                                        ),
                                       ),
-                                      BoxShadow(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .inversePrimary
-                                            .withOpacity(0.13),
-                                        spreadRadius: 1.0,
-                                        blurRadius: 15.0,
-                                        offset: const Offset(-5.0, -4.0),
+                                      Tab(
+                                        child: Center(
+                                          child: Text(
+                                            'Important',
+                                            style: TextStyle(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .inversePrimary,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      Tab(
+                                        child: Center(
+                                          child: Text(
+                                            'Bookmarked',
+                                            style: TextStyle(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .inversePrimary,
+                                            ),
+                                          ),
+                                        ),
                                       ),
                                     ],
                                   ),
-                                  labelStyle: TextStyle(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .inversePrimary,
-                                    fontSize: 14,
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10.0,
-                                  ),
-                                  dividerHeight: 0,
-                                  unselectedLabelStyle: TextStyle(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .inversePrimary,
-                                    fontSize: 13,
-                                  ),
-                                  tabAlignment: TabAlignment.fill,
-                                  tabs: [
-                                    Tab(
-                                      child: Center(
-                                        child: Text(
-                                          'All',
-                                          style: TextStyle(
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .inversePrimary,
-                                          ),
+                                  Expanded(
+                                    child: TabBarView(
+                                      children: [
+                                        AllNotes(
+                                          email: userEmail,
+                                          payload: widget.payload,
                                         ),
-                                      ),
+                                        const ImportantNotes(),
+                                        const BookmarkedNotes(),
+                                      ],
                                     ),
-                                    Tab(
-                                      child: Center(
-                                        child: Text(
-                                          'Important',
-                                          style: TextStyle(
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .inversePrimary,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    Tab(
-                                      child: Center(
-                                        child: Text(
-                                          'Bookmarked',
-                                          style: TextStyle(
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .inversePrimary,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Expanded(
-                                  child: TabBarView(
-                                    children: [
-                                      AllNotes(
-                                        email: userEmail,
-                                        payload: widget.payload,
-                                      ),
-                                      const ImportantNotes(),
-                                      const BookmarkedNotes(),
-                                    ],
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                        );
-                      default:
-                        return Center(
-                          child: CircularProgressIndicator(
-                            color: Theme.of(context).colorScheme.inversePrimary,
-                          ),
-                        );
-                    }
-                  },
-                );
+                          );
+                        default:
+                          return Center(
+                            child: CircularProgressIndicator(
+                              color:
+                                  Theme.of(context).colorScheme.inversePrimary,
+                            ),
+                          );
+                      }
+                    },
+                  );
+                } else {
+                  return Center(
+                    child: CircularProgressIndicator(
+                      color: Theme.of(context).colorScheme.inversePrimary,
+                    ),
+                  );
+                }
+
               default:
                 return Center(
                   child: CircularProgressIndicator(

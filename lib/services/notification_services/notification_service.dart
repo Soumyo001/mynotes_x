@@ -69,4 +69,7 @@ class NotificationService implements CustomNotificationProvider {
         scheduledDate: scheduledDate,
         days: days,
       );
+
+  @override
+  Future<void> cancel(int id) => notificationProvider.cancel(id);
 }

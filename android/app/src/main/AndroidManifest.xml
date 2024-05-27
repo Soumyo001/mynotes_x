@@ -15,7 +15,7 @@
     <application
         android:label="mynotes"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@mipmap/app_logo_main"
         android:showWhenLocked="true"
         android:turnScreenOn="true"
         >

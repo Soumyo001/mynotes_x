@@ -15,3 +15,15 @@ class UserAlreadyExistsException implements Exception {}
 class CouldNotFindNoteException implements Exception {}
 
 class CouldNotUpdateNotesException implements Exception {}
+
+class CouldNotFindTagsException implements Exception {}
+
+class CouldNotUpdateTagsException implements Exception {}
+
+class CouldNotDeleteTagsException implements Exception {}
+
+class NoTagsAvailableForUserException implements Exception {}
+
+class TagAlreadyExistsException implements Exception {}
+
+class TagExistsForSpecificNote implements Exception {}

@@ -1,4 +1,3 @@
-import 'package:date_time/date_time.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:mynotes_x/services/notification_services/notification_provider.dart';
@@ -31,6 +30,9 @@ class FlutterNotificationProvider implements CustomNotificationProvider {
         channelDescription: 'channel description',
         priority: Priority.high,
         importance: Importance.max,
+        icon: '@mipmap/app_logo_main',
+        enableLights: true,
+        enableVibration: true,
       ),
       iOS: DarwinNotificationDetails(
         presentAlert: true,
@@ -52,7 +54,7 @@ class FlutterNotificationProvider implements CustomNotificationProvider {
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()!
         .requestExactAlarmsPermission();
-    const android = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const android = AndroidInitializationSettings('@mipmap/app_logo_main');
     final iOS = DarwinInitializationSettings(
       onDidReceiveLocalNotification: (id, title, body, payload) {
         try {
@@ -120,11 +122,6 @@ class FlutterNotificationProvider implements CustomNotificationProvider {
         title,
         body,
         _scheduleDaily(
-          Time(
-            hour: scheduledDate.hour,
-            minute: scheduledDate.minute,
-            second: scheduledDate.second,
-          ),
           scheduledDate,
         ),
         await _notificationDetails(),
@@ -149,11 +146,6 @@ class FlutterNotificationProvider implements CustomNotificationProvider {
         title,
         body,
         _scheduleWeekly(
-          Time(
-            hour: scheduledDate.hour,
-            minute: scheduledDate.minute,
-            second: scheduledDate.second,
-          ),
           scheduledDate,
           days: days,
         ),
@@ -165,35 +157,40 @@ class FlutterNotificationProvider implements CustomNotificationProvider {
         matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
       );
 
-  tz.TZDateTime _scheduleDaily(Time time, DateTime dateTime) {
+  tz.TZDateTime _scheduleDaily(DateTime dateTime) {
     final now = TZDateTime.now(tz.getLocation(_currentZone));
-    final scheduledDate = tz.TZDateTime(
+    tz.TZDateTime scheduledDate = tz.TZDateTime(
       tz.getLocation(_currentZone),
       dateTime.year,
       dateTime.month,
       dateTime.day,
-      time.hour,
-      time.minute,
-      time.second,
+      dateTime.hour,
+      dateTime.minute,
+      dateTime.second,
     );
-    return scheduledDate.isBefore(now)
-        ? scheduledDate.add(
-            const Duration(
-              days: 1,
-            ),
-          )
-        : scheduledDate;
+    if (scheduledDate.isBefore(now)) {
+      scheduledDate = scheduledDate.add(
+        const Duration(
+          days: 1,
+        ),
+      );
+    }
+    return scheduledDate;
   }
 
   tz.TZDateTime _scheduleWeekly(
-    Time time,
     DateTime dateTime, {
     required List<int> days,
   }) {
-    tz.TZDateTime scheduledDate = _scheduleDaily(time, dateTime);
+    tz.TZDateTime scheduledDate = _scheduleDaily(dateTime);
     while (!days.contains(scheduledDate.weekday)) {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
     }
     return scheduledDate;
+  }
+
+  @override
+  Future<void> cancel(int id) async {
+    await _notifications.cancel(id);
   }
 }

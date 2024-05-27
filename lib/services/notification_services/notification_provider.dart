@@ -26,5 +26,6 @@ abstract class CustomNotificationProvider {
   Future<void> initNotification({
     bool isScheduled = false,
   });
+  Future<void> cancel(int id);
   BehaviorSubject<String?> get onClick;
 }

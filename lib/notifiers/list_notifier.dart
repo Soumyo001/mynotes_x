@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mynotes_x/utilities/constants.dart';
 
 class ListNotifier with ChangeNotifier {
   List<Map<dynamic, dynamic>> _items = [];
@@ -17,7 +18,7 @@ class ListNotifier with ChangeNotifier {
   bool get isNotEmpty => _items.isNotEmpty;
 
   void removeUnCheckedItems() {
-    _items.removeWhere((element) => element['isChecked'] == false);
+    _items.removeWhere((element) => element[checkedTag] == false);
     notifyListeners();
   }
 
@@ -30,7 +31,7 @@ class ListNotifier with ChangeNotifier {
 
   void reload(List<Map<dynamic, dynamic>> value) {
     _items.clear();
-    _items = value.where((element) => element['isChecked'] == true).toList();
+    _items = value.where((element) => element[checkedTag] == true).toList();
     notifyListeners();
   }
 }
