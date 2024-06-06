@@ -1,9 +1,13 @@
+// ignore_for_file: use_build_context_synchronously
+
+import 'dart:async';
 import 'dart:io';
 import 'package:date_time/date_time.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:mynotes_x/components/alert_dialog_content_button.dart';
@@ -17,27 +21,33 @@ import 'package:mynotes_x/services/crud/crud_exceptions.dart';
 import 'package:mynotes_x/services/crud/notes_service.dart';
 import 'package:mynotes_x/services/notification_services/notification_service.dart';
 import 'package:mynotes_x/utilities/constants.dart';
+import 'package:mynotes_x/utilities/exception_dialog.dart';
 import 'package:provider/provider.dart';
 import 'dart:developer' as dev;
 
-class CreateNewNote extends StatefulWidget {
-  const CreateNewNote({super.key});
+class CreateUpdateNewNote extends StatefulWidget {
+  final DatabaseUser? user;
+  final DatabaseNotes? note;
+  const CreateUpdateNewNote({
+    super.key,
+    this.user,
+    this.note,
+  });
 
   @override
-  State<CreateNewNote> createState() => _CreateNewNoteState();
+  State<CreateUpdateNewNote> createState() => _CreateUpdateNewNoteState();
 }
 
-class _CreateNewNoteState extends State<CreateNewNote> {
+class _CreateUpdateNewNoteState extends State<CreateUpdateNewNote> {
   DatabaseNotes? _notes;
-  DatabaseUser? _user;
-  File? _image;
-  String? _imagePath = '';
-  Color? _color;
+  final RxString _imagePath = ''.obs;
+  final RxInt _colorValue = 4278190080.obs;
   bool _isList = false;
-  bool _setRemainder = false;
-  bool _hasTag = false;
-  String? month, week;
-  String? repeat;
+  final RxBool _setRemainder = false.obs;
+  final RxBool _hasTag = false.obs;
+  bool _isSetRemainder = false;
+  final RxString _time = ''.obs, _date = ''.obs;
+  final RxString _repeat = ''.obs;
   late final ListNotifier listNotifier;
   late VoidCallback _listener;
   late final NotesService _notesService;
@@ -49,20 +59,7 @@ class _CreateNewNoteState extends State<CreateNewNote> {
   DateTime? _dateTime;
 
   final List<Map> _categories = [];
-  final List<Map> _tagSuggestions = [
-    {
-      checkedTag: false,
-      tagTag: 'inspiration',
-    },
-    {
-      checkedTag: false,
-      tagTag: 'work',
-    },
-    {
-      checkedTag: false,
-      tagTag: 'piano',
-    },
-  ];
+  final List<Map> _tagSuggestions = [];
   final List<Map> _weeks = [
     {
       weekTag: saturday,
@@ -93,48 +90,69 @@ class _CreateNewNoteState extends State<CreateNewNote> {
       checkedTag: false,
     },
   ];
+  List<DatabaseTagsForUser> _userTags = [];
+  final RxList<Map> _foundTags = [{}].obs;
 
-  List<Map> _foundTags = [];
+  Future<void> _initView() async {
+    final updatingNote = widget.note;
+    try {
+      _userTags =
+          (await _notesService.getTagsForSpecificUser(user: widget.user!))
+              .toList();
+      for (final i in _userTags) {
+        _tagSuggestions.add({
+          tagTag: i.tagName,
+          checkedTag: false.obs,
+        });
+      }
+    } on NoTagsAvailableForUserException {
+      return;
+    }
 
-  Future<bool> _showExceptionDialog({
-    required String tittle,
-    required String content,
-  }) {
-    return showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog.adaptive(
-          icon: Icon(
-            Icons.info,
-            color: Theme.of(context).colorScheme.inversePrimary,
-          ),
-          title: Text(
-            tittle,
-            style:
-                TextStyle(color: Theme.of(context).colorScheme.inversePrimary),
-          ),
-          content: Text(
-            content,
-            style:
-                TextStyle(color: Theme.of(context).colorScheme.inversePrimary),
-          ),
-          backgroundColor: Theme.of(context).colorScheme.secondary,
-          actions: [
-            MaterialButton(
-              onPressed: () {
-                Navigator.of(context).pop(true);
-              },
-              child: Text(
-                'ok',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.inversePrimary,
-                ),
-              ),
-            )
-          ],
+    if (updatingNote != null) {
+      try {
+        if (updatingNote.imagePath != '') {
+          _imagePath.value = updatingNote.imagePath;
+          dev.log('image path: ${_imagePath.value}');
+        }
+        dev.log(
+            'date: ${updatingNote.date} ${updatingNote.time} ${updatingNote.repeatStatus}');
+        if (updatingNote.date != '' &&
+            updatingNote.time != '' &&
+            updatingNote.repeatStatus != '') {
+          _dateTime = DateTime.parse(updatingNote.date);
+          _timeOfDay = TimeOfDay.fromDateTime(_dateTime!);
+          _date.value = updatingNote.date;
+          _time.value = updatingNote.time;
+          _repeat.value = updatingNote.repeatStatus;
+          _setRemainder.value = true;
+          _isSetRemainder = true;
+
+          dev.log('${_dateTime.toString()} \n ${_timeOfDay.toString()} ');
+        }
+        _colorValue.value = updatingNote.textColor;
+        final tagsList = await _notesService.getTagsForSpecificNote(
+          user: widget.user!,
+          note: updatingNote,
         );
-      },
-    ).then((value) => value ?? true);
+        final tags = tagsList.toList();
+        for (final tag in tags) {
+          final item = {
+            tagTag: tag.tagName,
+            checkedTag: true.obs,
+          };
+          _tagSuggestions.removeWhere(
+              (element) => (element[tagTag] as String) == tag.tagName);
+          _tagSuggestions.add(item);
+          listNotifier.addItem(item);
+        }
+        _hasTag.value = true;
+      } on CouldNotFindTagsException {
+        //do nothing
+      }
+    }
+
+    _foundTags.value = _tagSuggestions;
   }
 
   void _textAndTittleEditingControllerListener() async {
@@ -148,7 +166,11 @@ class _CreateNewNoteState extends State<CreateNewNote> {
       noteToBeUpdated: note,
       tittle: tittle,
       text: text,
-      imagePath: _imagePath,
+      imagePath: _imagePath.value,
+      textColor: _colorValue.value,
+      time: _time.value,
+      date: _date.value,
+      repeatStatus: _repeat.value,
     );
   }
 
@@ -167,27 +189,39 @@ class _CreateNewNoteState extends State<CreateNewNote> {
     );
   }
 
-  Future<DatabaseNotes> createNote() async {
+  Future<DatabaseNotes> _createOrGetExistingNote() async {
+    final updatingNote = widget.note;
+    if (updatingNote != null) {
+      _notes = updatingNote;
+
+      _tittleEditingController.text = updatingNote.tittle;
+      _textEditingController.text = updatingNote.text;
+
+      return updatingNote;
+    }
     final existingNote = _notes;
     if (existingNote != null) {
       return existingNote;
     }
     final userEmail = AuthService.firebase().currentUser!.email!;
     final user = await _notesService.getUser(email: userEmail);
-    return await _notesService.createNote(user: user);
+    final newNote = await _notesService.createNote(user: user);
+    _notes = newNote;
+    return newNote;
   }
 
   void _deleteIfTextIsEmpty() async {
     final note = _notes;
     final tittle = _tittleEditingController.text;
     final text = _textEditingController.text;
-    if ((text.isEmpty || _categories.isEmpty) &&
-        tittle.isEmpty &&
-        note != null) {
-      await _notesService.deleteNote(
-        id: note.noteID,
-      );
-    }
+    if (_categories.isEmpty) {
+      if (text.isEmpty && tittle.isEmpty && note != null) {
+        dev.log('entered delete: ${note.text} ${note.noteID}');
+        await _notesService.deleteNote(
+          id: note.noteID,
+        );
+      }
+    } else {}
   }
 
   void _saveIfTextExists() async {
@@ -195,13 +229,18 @@ class _CreateNewNoteState extends State<CreateNewNote> {
     final tittle = _tittleEditingController.text;
     final text = _textEditingController.text;
     if ((text.isNotEmpty || tittle.isNotEmpty) && note != null) {
+      dev.log('from save exists : $_imagePath \n date: $_date');
       await _notesService.updateNote(
         noteToBeUpdated: note,
         tittle: tittle,
         text: text,
-        imagePath: _imagePath,
+        imagePath: _imagePath.value,
+        textColor: _colorValue.value,
+        time: _time.value,
+        date: _date.value,
+        repeatStatus: _repeat.value,
       );
-    } else if (_categories.isNotEmpty && note != null) {}
+    }
   }
 
   Future<void> _photoPicker(ImageSource source) async {
@@ -217,54 +256,38 @@ class _CreateNewNoteState extends State<CreateNewNote> {
         }
       }
       final imagePath = imagePickerGallery.path;
-      _imagePath = imagePath;
-      final image = File(imagePath);
-      setState(() {
-        _image = image;
-      });
-    } on CouldNotCaptureImageException catch (e) {
-      await _showExceptionDialog(
-        tittle: 'Couldn\'t capture image',
-        content: e.code,
-      );
-    } on CouldNotPickImageException catch (e) {
-      await _showExceptionDialog(
-        tittle: 'Couldn\'t load image',
-        content: e.code,
-      );
+      _imagePath.value = imagePath.toString();
+    } on CouldNotPickImageException {
+      return;
+    } on CouldNotCaptureImageException {
+      return;
     } on PlatformException catch (e) {
-      await _showExceptionDialog(
-        tittle: 'Couldn\'t pick image',
+      await showExceptionDialog(
+        title: 'An Error Occured',
         content: e.code,
+        context: context,
       );
     } catch (e) {
-      await _showExceptionDialog(
-        tittle: 'unknown error occured',
+      await showExceptionDialog(
+        title: 'unknown error occured',
         content: e.toString(),
+        context: context,
       );
     }
   }
 
   Future<void> _deletePhoto() async {
-    if (_imagePath != null) {
-      setState(() {
-        imageCache.clear();
-        _imagePath = '';
-        _image = null;
-      });
-    } else {
-      await _showExceptionDialog(
-        tittle: 'Pick an image',
-        content: 'You didn\'t pick an image',
-      );
-    }
+    setState(() {
+      imageCache.clear();
+      _imagePath.value = '';
+    });
   }
 
-  Future<bool> colorPicker(BuildContext context) {
-    return showDialog<bool>(
+  Future<void> _colorPicker(BuildContext context) {
+    return showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
+        return AlertDialog.adaptive(
           title: Text(
             'Pick a color',
             style: TextStyle(
@@ -272,49 +295,56 @@ class _CreateNewNoteState extends State<CreateNewNote> {
             ),
           ),
           content: BlockPicker(
-            pickerColor: Colors.red,
+            pickerColor: Color(_colorValue.value),
             onColorChanged: (color) {
               setState(() {
-                _color = color;
+                _colorValue.value = color.value;
               });
+              dev.log(_colorValue.toString());
             },
           ),
           actions: <Widget>[
-            ElevatedButton(
+            MaterialButton(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
               onPressed: () {
                 Navigator.of(context).pop(true);
               },
               child: Text(
-                'Select',
+                'Close',
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.inversePrimary,
+                  fontWeight: FontWeight.w400,
                 ),
               ),
             ),
           ],
         );
       },
-    ).then((value) => value ?? true);
+    );
   }
 
-  void _filter(String value, void Function(void Function()) setState) {
+  void _filter(String value) {
     if (value.isEmpty) {
-      setState(() {
-        _foundTags = _tagSuggestions;
-      });
+      _foundTags.value = _tagSuggestions;
       return;
     }
-    setState(() {
-      _foundTags = _tagSuggestions
-          .where((element) =>
-              (element[tagTag] as String).toLowerCase().contains(value))
-          .toList();
-    });
+    _foundTags.value = _tagSuggestions
+        .where((element) => (element[tagTag] as String).contains(value))
+        .toList();
   }
 
-  void _reminderPicker() {
-    _setRemainder = true;
-    repeat = notificationNoRepeat;
+  void _reminderPicker() async {
+    dev.log('$_date $_time $_repeat');
+    dev.log(_dateTime.toString());
+    if (!_isSetRemainder) {
+      _repeat.value = notificationNoRepeat;
+      _time.value = _timeOfDay!.format(context).toString();
+      _date.value = _dateTime.toString();
+      _isSetRemainder = true;
+      dev.log('$_date $_time $_repeat');
+    }
     showDialog(
       context: context,
       builder: (context) {
@@ -329,8 +359,12 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                 width: double.infinity,
                 child: TextButton(
                   onPressed: () {
+                    _setRemainder.value = true;
                     setState(() {
                       _dateTime = DateTime.now();
+                      _dateTime = _dateTime!.copyWith(
+                          hour: _timeOfDay!.hour, minute: _timeOfDay!.minute);
+                      _date.value = _dateTime.toString();
                     });
                     Navigator.of(context).pop();
                   },
@@ -354,6 +388,7 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                 width: double.infinity,
                 child: TextButton(
                   onPressed: () {
+                    _setRemainder.value = true;
                     setState(() {
                       _dateTime = DateTime.now();
                       _dateTime = _dateTime!.add(
@@ -361,6 +396,9 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                           days: 1,
                         ),
                       );
+                      _dateTime = _dateTime!.copyWith(
+                          hour: _timeOfDay!.hour, minute: _timeOfDay!.minute);
+                      _date.value = _dateTime.toString();
                     });
                     Navigator.of(context).pop();
                   },
@@ -384,6 +422,7 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                 width: double.infinity,
                 child: TextButton(
                   onPressed: () {
+                    _setRemainder.value = true;
                     setState(() {
                       _dateTime = DateTime.now();
                       _dateTime = _dateTime!.add(
@@ -391,6 +430,9 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                           days: 7,
                         ),
                       );
+                      _dateTime = _dateTime!.copyWith(
+                          hour: _timeOfDay!.hour, minute: _timeOfDay!.minute);
+                      _date.value = _dateTime.toString();
                     });
                     Navigator.of(context).pop();
                   },
@@ -450,6 +492,10 @@ class _CreateNewNoteState extends State<CreateNewNote> {
         try {
           setState(() {
             _timeOfDay = value!;
+            _dateTime = _dateTime!
+                .copyWith(hour: _timeOfDay!.hour, minute: _timeOfDay!.minute);
+            _time.value = _timeOfDay!.format(context).toString();
+            _date.value = _dateTime!.toString();
           });
         } catch (e) {
           //do nothing
@@ -466,8 +512,12 @@ class _CreateNewNoteState extends State<CreateNewNote> {
       lastDate: DateTime(2500),
     ).then((value) {
       try {
+        _setRemainder.value = true;
         setState(() {
           _dateTime = value!;
+          _dateTime = _dateTime!
+              .copyWith(hour: _timeOfDay!.hour, minute: _timeOfDay!.minute);
+          _date.value = _dateTime!.toString();
         });
       } catch (e) {
         //do nothing
@@ -475,7 +525,7 @@ class _CreateNewNoteState extends State<CreateNewNote> {
     });
   }
 
-  void onTimeTap() {
+  void _onTimeTap() {
     showDialog(
       context: context,
       builder: (context) {
@@ -492,6 +542,10 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                   onPressed: () {
                     setState(() {
                       _timeOfDay = const TimeOfDay(hour: 9, minute: 00);
+                      _dateTime = _dateTime!.copyWith(
+                          hour: _timeOfDay!.hour, minute: _timeOfDay!.minute);
+                      _time.value = _timeOfDay!.format(context).toString();
+                      _date.value = _dateTime.toString();
                     });
                     Navigator.of(context).pop();
                   },
@@ -516,6 +570,10 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                   onPressed: () {
                     setState(() {
                       _timeOfDay = const TimeOfDay(hour: 12, minute: 00);
+                      _dateTime = _dateTime!.copyWith(
+                          hour: _timeOfDay!.hour, minute: _timeOfDay!.minute);
+                      _time.value = _timeOfDay!.format(context).toString();
+                      _date.value = _dateTime.toString();
                     });
                     Navigator.of(context).pop();
                   },
@@ -540,6 +598,10 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                   onPressed: () {
                     setState(() {
                       _timeOfDay = const TimeOfDay(hour: 15, minute: 00);
+                      _dateTime = _dateTime!.copyWith(
+                          hour: _timeOfDay!.hour, minute: _timeOfDay!.minute);
+                      _time.value = _timeOfDay!.format(context).toString();
+                      _date.value = _dateTime.toString();
                     });
                     Navigator.of(context).pop();
                   },
@@ -564,6 +626,10 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                   onPressed: () {
                     setState(() {
                       _timeOfDay = const TimeOfDay(hour: 18, minute: 00);
+                      _dateTime = _dateTime!.copyWith(
+                          hour: _timeOfDay!.hour, minute: _timeOfDay!.minute);
+                      _time.value = _timeOfDay!.format(context).toString();
+                      _date.value = _dateTime.toString();
                     });
                     Navigator.of(context).pop();
                   },
@@ -588,6 +654,10 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                   onPressed: () {
                     setState(() {
                       _timeOfDay = const TimeOfDay(hour: 21, minute: 00);
+                      _dateTime = _dateTime!.copyWith(
+                          hour: _timeOfDay!.hour, minute: _timeOfDay!.minute);
+                      _time.value = _timeOfDay!.format(context).toString();
+                      _date.value = _dateTime.toString();
                     });
                     Navigator.of(context).pop();
                   },
@@ -635,11 +705,11 @@ class _CreateNewNoteState extends State<CreateNewNote> {
     );
   }
 
-  void onDateTap() {
+  void _onDateTap() {
     _reminderPicker();
   }
 
-  void onRepeatTap() {
+  void _onRepeatTap() {
     showDialog(
       context: context,
       builder: (context) {
@@ -651,9 +721,9 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                   buttonText: notificationNoRepeat,
                   onPressed: () {
                     setState(() {
-                      repeat = notificationNoRepeat;
+                      _repeat.value = notificationNoRepeat;
                       for (var week in _weeks) {
-                        week['isChecked'] = false;
+                        week[checkedTag] = false;
                       }
                     });
                     Navigator.of(context).pop();
@@ -662,7 +732,7 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                 buttonText: notificationRepeatDaily,
                 onPressed: () {
                   setState(() {
-                    repeat = notificationRepeatDaily;
+                    _repeat.value = notificationRepeatDaily;
                     for (var week in _weeks) {
                       week[checkedTag] = false;
                     }
@@ -674,7 +744,7 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                 buttonText: notificationRepeatWeekly,
                 onPressed: () {
                   setState(() {
-                    repeat = notificationRepeatWeekly;
+                    _repeat.value = notificationRepeatWeekly;
                   });
                   Navigator.of(context).pop();
                   showDialog(
@@ -734,12 +804,11 @@ class _CreateNewNoteState extends State<CreateNewNote> {
 
   @override
   void initState() {
+    super.initState();
     _textEditingController = TextEditingController();
     _tittleEditingController = TextEditingController();
     _tagTextEditingController = TextEditingController();
     _notesService = NotesService();
-    _foundTags = _tagSuggestions;
-
     _timeOfDay = TimeOfDay.now();
     _dateTime = DateTime.now();
 
@@ -748,8 +817,7 @@ class _CreateNewNoteState extends State<CreateNewNote> {
       setState(() {});
     };
     listNotifier.addListener(_listener);
-
-    super.initState();
+    _initView();
   }
 
   @override
@@ -762,19 +830,24 @@ class _CreateNewNoteState extends State<CreateNewNote> {
     listNotifier.removeListener(_listener);
     listNotifier.items.clear();
     _categories.clear();
+    _tagSuggestions.clear();
+    _foundTags.clear();
+    _userTags.clear();
+    dev.log('dispose');
+    dev.log(_date.value);
+    dev.log(_imagePath.value);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder(
-      future: createNote(),
+      future: _createOrGetExistingNote(),
       builder: (context, snapshot) {
         switch (snapshot.connectionState) {
           case ConnectionState.waiting:
           case ConnectionState.done:
             if (snapshot.hasData) {
-              _notes = snapshot.data as DatabaseNotes;
               _setupTextAndTittleEditingControllerListener();
             }
             return Scaffold(
@@ -792,7 +865,7 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                 actions: [
                   IconButton(
                     onPressed: () async {
-                      await colorPicker(context);
+                      await _colorPicker(context);
                     },
                     icon: Icon(
                       Icons.color_lens,
@@ -879,137 +952,156 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                       showDialog(
                         context: context,
                         builder: (context) {
-                          return StatefulBuilder(
-                            builder: (context, setState) {
-                              setState(() {
-                                _hasTag = true;
-                                if (listNotifier.items.isEmpty) {
-                                  _hasTag = false;
-                                }
-                                dev.log(_hasTag.toString());
-                              });
-                              return AlertDialog.adaptive(
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(13),
-                                ),
-                                title: Text(
-                                  'Tags',
-                                  style: TextStyle(
-                                    color: Theme.of(context)
+                          if (listNotifier.items.isEmpty) {
+                            _hasTag.value = false;
+                          }
+                          dev.log(_hasTag.value.toString());
+                          return AlertDialog.adaptive(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(13),
+                            ),
+                            title: Text(
+                              'Tags',
+                              style: TextStyle(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .inversePrimary,
+                              ),
+                            ),
+                            content: SingleChildScrollView(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  TextField(
+                                    controller: _tagTextEditingController,
+                                    enableSuggestions: true,
+                                    autocorrect: false,
+                                    maxLines: 1,
+                                    cursorColor: Theme.of(context)
                                         .colorScheme
                                         .inversePrimary,
-                                  ),
-                                ),
-                                content: SingleChildScrollView(
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      TextField(
-                                        controller: _tagTextEditingController,
-                                        enableSuggestions: true,
-                                        autocorrect: false,
-                                        maxLines: 1,
-                                        cursorColor: Theme.of(context)
+                                    onChanged: (value) => _filter(value),
+                                    decoration: InputDecoration(
+                                      hintText: 'Add tag',
+                                      hintStyle: TextStyle(
+                                        color: Theme.of(context)
                                             .colorScheme
-                                            .inversePrimary,
-                                        onChanged: (value) =>
-                                            _filter(value, setState),
-                                        decoration: InputDecoration(
-                                          hintText: 'Add tag',
-                                          hintStyle: TextStyle(
+                                            .inversePrimary
+                                            .withOpacity(0.5),
+                                        fontWeight: FontWeight.w400,
+                                      ),
+                                      enabledBorder: const OutlineInputBorder(
+                                        borderSide: BorderSide.none,
+                                      ),
+                                      focusedBorder: const OutlineInputBorder(
+                                        borderSide: BorderSide.none,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(
+                                    height: 7,
+                                  ),
+                                  Obx(
+                                    () => Column(
+                                      children: _foundTags.asMap().entries.map(
+                                        (e) {
+                                          final value = e.value;
+                                          return TextWithCheckBox(
+                                            value: value,
+                                            textLeftPadding: 0,
+                                            icon: true,
+                                            isMainIndexController: false,
+                                            index: tagTag,
+                                            secondaryIndex: checkedTag,
+                                            checkValue:
+                                                (value[checkedTag] as RxBool)
+                                                    .value,
+                                            onChanged: (p0) async {
+                                              (value[checkedTag]
+                                                      as RxBool) //try to check if this works with normal bool because the _foundTags list is already a rxlist
+                                                  .value = !(value[checkedTag]
+                                                      as RxBool)
+                                                  .value;
+                                              if ((value[checkedTag] as RxBool)
+                                                      .value ==
+                                                  true) {
+                                                _hasTag.value = true;
+                                                listNotifier.addItem(value);
+                                              } else {
+                                                listNotifier.removeItem(value);
+                                                if (widget.note != null) {
+                                                  try {
+                                                    await _notesService
+                                                        .deleteTagFromSpecificNote(
+                                                      user: widget.user!,
+                                                      notes: widget.note!,
+                                                      tagName: value[tagTag]
+                                                          as String,
+                                                    );
+                                                  } on CouldNotDeleteTagFromSpecificNoteException {
+                                                    //do nothing
+                                                  }
+                                                }
+                                              }
+                                              dev.log(
+                                                  '${listNotifier.items.toString()} \n ${listNotifier.items.length}');
+                                            },
+                                          );
+                                        },
+                                      ).toList(),
+                                    ),
+                                  ),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      MaterialButton(
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(10),
+                                        ),
+                                        child: Text(
+                                          'Done',
+                                          style: TextStyle(
                                             color: Theme.of(context)
                                                 .colorScheme
-                                                .inversePrimary
-                                                .withOpacity(0.5),
-                                            fontWeight: FontWeight.w400,
-                                          ),
-                                          enabledBorder:
-                                              const OutlineInputBorder(
-                                            borderSide: BorderSide.none,
-                                          ),
-                                          focusedBorder:
-                                              const OutlineInputBorder(
-                                            borderSide: BorderSide.none,
+                                                .inversePrimary,
                                           ),
                                         ),
-                                      ),
-                                      const SizedBox(
-                                        height: 7,
-                                      ),
-                                      Column(
-                                        children:
-                                            _foundTags.asMap().entries.map(
-                                          (e) {
-                                            final value = e.value;
-                                            return TextWithCheckBox(
-                                              value: value,
-                                              textLeftPadding: 0,
-                                              icon: true,
-                                              isMainIndexController: false,
-                                              index: tagTag,
-                                              secondaryIndex: checkedTag,
-                                              onChanged: (p0) {
-                                                setState(() {
-                                                  value[checkedTag] = p0!;
-                                                  if (value[checkedTag] ==
-                                                      true) {
-                                                    listNotifier.addItem(value);
-                                                  } else {
-                                                    listNotifier
-                                                        .removeUnCheckedItems();
-                                                  }
-                                                });
-                                              },
-                                            );
-                                          },
-                                        ).toList(),
-                                      ),
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.end,
-                                        children: [
-                                          MaterialButton(
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
-                                            ),
-                                            child: Text(
-                                              'Done',
-                                              style: TextStyle(
-                                                color: Theme.of(context)
-                                                    .colorScheme
-                                                    .inversePrimary,
-                                              ),
-                                            ),
-                                            onPressed: () {
-                                              if (_tagTextEditingController
-                                                  .text.isNotEmpty) {
-                                                setState(() {
-                                                  _tagSuggestions.add(
-                                                    {
-                                                      checkedTag: true,
-                                                      tagTag:
-                                                          _tagTextEditingController
-                                                              .text,
-                                                    },
-                                                  );
-                                                  _foundTags = _tagSuggestions;
-                                                  listNotifier
-                                                      .reload(_foundTags);
-                                                  _tagTextEditingController
-                                                      .clear();
-                                                });
-                                              }
-                                              Navigator.of(context).pop();
-                                            },
-                                          ),
-                                        ],
+                                        onPressed: () async {
+                                          Navigator.of(context).pop();
+                                          if (_tagTextEditingController
+                                              .text.isNotEmpty) {
+                                            try {
+                                              await _notesService.saveUserTag(
+                                                user: widget.user!,
+                                                tagName:
+                                                    _tagTextEditingController
+                                                        .text,
+                                              );
+                                              final item = {
+                                                checkedTag: true.obs,
+                                                tagTag:
+                                                    _tagTextEditingController
+                                                        .text,
+                                              };
+                                              _tagSuggestions.add(item);
+                                              _foundTags.value =
+                                                  _tagSuggestions;
+                                              listNotifier.addItem(item);
+                                              dev.log(listNotifier.items
+                                                  .toString());
+                                            } on TagAlreadyExistsException {
+                                              //do nothing
+                                            }
+                                            _tagTextEditingController.clear();
+                                          }
+                                        },
                                       ),
                                     ],
                                   ),
-                                ),
-                              );
-                            },
+                                ],
+                              ),
+                            ),
                           );
                         },
                       );
@@ -1052,97 +1144,114 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                   color: Theme.of(context).colorScheme.inversePrimary,
                 ),
                 onPressed: () async {
-                  _dateTime = _dateTime!.copyWith(
-                      hour: _timeOfDay!.hour, minute: _timeOfDay!.minute);
-                  _user = await _notesService.getUser(
-                    email: AuthService.firebase().currentUser!.email!,
-                  );
-                  if (_isList) {
-                    String text = '';
-                    for (var i in _categories) {
-                      if ((i[controllerTag] as TextEditingController)
-                          .text
-                          .isNotEmpty) {
-                        text +=
-                            (i[controllerTag] as TextEditingController).text;
-                        text += ' ';
-                        text += (i[checkedTag] as bool).toString();
-                        text += '\n';
-                      } else {
-                        break;
+                  try {
+                    if (_isList) {
+                      dev.log('IS LIST!!!!!!!');
+                      String text = '';
+                      for (var i in _categories) {
+                        if ((i[controllerTag] as TextEditingController)
+                            .text
+                            .isNotEmpty) {
+                          text +=
+                              (i[controllerTag] as TextEditingController).text;
+                          text += ' ';
+                          text += (i[checkedTag] as bool).toString();
+                          text += '\n';
+                        } else {
+                          break;
+                        }
                       }
+                      dev.log(text);
                     }
-                    dev.log(text);
-                  }
-                  if (_hasTag) {
-                    for (final i in _foundTags) {
-                      if ((i[checkedTag] as bool) == true) {
-                        try {
-                          final test = await _notesService.createTag(
-                            user: _user!,
-                            note: _notes!,
-                            tagName: (i[tagTag] as String),
+                    if (_setRemainder.value) {
+                      dev.log('IS REMAAINDER!!!!!!!');
+                      if (_repeat.value == notificationNoRepeat) {
+                        await NotificationService.getInstance()
+                            .showNotification(
+                          id: 0,
+                          title: _tittleEditingController.text,
+                          payload: 'payload',
+                          body: DateFormat('EEEE, d MMM, yyyy')
+                              .format(_dateTime!),
+                          scheduledDate: _dateTime!,
+                        );
+                      } else if (_repeat.value == notificationRepeatDaily) {
+                        await NotificationService.getInstance()
+                            .showNotificationDaily(
+                          id: 0,
+                          title: _tittleEditingController.text,
+                          payload: 'payload',
+                          body: DateFormat('EEEE, d MMM, yyyy')
+                              .format(_dateTime!),
+                          scheduledDate: _dateTime!,
+                        );
+                      } else if (_repeat.value == notificationRepeatWeekly) {
+                        List<int> days = [];
+                        for (var i in _weeks) {
+                          if (i[checkedTag] == true) {
+                            if (i[weekTag] == 'monday') {
+                              days.add(DateTime.monday);
+                            } else if (i[weekTag] == tuesday) {
+                              days.add(DateTime.tuesday);
+                            } else if (i[weekTag] == wednesday) {
+                              days.add(DateTime.wednesday);
+                            } else if (i[weekTag] == thursday) {
+                              days.add(DateTime.thursday);
+                            } else if (i[weekTag] == friday) {
+                              days.add(DateTime.friday);
+                            } else if (i[weekTag] == saturday) {
+                              days.add(DateTime.saturday);
+                            } else if (i[weekTag] == sunday) {
+                              days.add(DateTime.sunday);
+                            }
+                          }
+                        }
+                        if (days.isNotEmpty) {
+                          dev.log(days.toString());
+                          await NotificationService.getInstance()
+                              .showNotificationWeekly(
+                            id: 0,
+                            title: _tittleEditingController.text,
+                            payload: 'payload',
+                            body: DateFormat('EEEE, d MMM, yyyy')
+                                .format(_dateTime!),
+                            scheduledDate: _dateTime!,
+                            days: days,
                           );
-                          dev.log('test: ${test.toString()}');
-                        } on TagExistsForSpecificNote {
-                          //do nothing
+                        } else {
+                          throw const UnselectedWeekExceptioon();
                         }
                       }
                     }
-                    final e = await _notesService.getTagsForSpecificNote(
-                        user: _user!, notes: _notes!);
-                    dev.log(e.toList().toString());
-                  }
-                  if (_setRemainder) {
-                    if (repeat == notificationNoRepeat) {
-                      await NotificationService.getInstance().showNotification(
-                        id: 0,
-                        title: _tittleEditingController.text,
-                        body: DateFormat('EEEE', 'en_US').format(_dateTime!),
-                        scheduledDate: _dateTime!,
-                      );
-                    } else if (repeat == notificationRepeatDaily) {
-                      await NotificationService.getInstance()
-                          .showNotificationDaily(
-                        id: 0,
-                        payload: 'payload here',
-                        title: _tittleEditingController.text,
-                        body: DateFormat('EEEE', 'en_US').format(_dateTime!),
-                        scheduledDate: _dateTime!,
-                      );
-                    } else if (repeat == notificationRepeatWeekly) {
-                      List<int> days = [];
-                      for (var i in _weeks) {
-                        if (i['isChecked'] == true) {
-                          if (i['week'] == 'monday') {
-                            days.add(DateTime.monday);
-                          } else if (i[weekTag] == tuesday) {
-                            days.add(DateTime.tuesday);
-                          } else if (i[weekTag] == wednesday) {
-                            days.add(DateTime.wednesday);
-                          } else if (i[weekTag] == thursday) {
-                            days.add(DateTime.thursday);
-                          } else if (i[weekTag] == friday) {
-                            days.add(DateTime.friday);
-                          } else if (i[weekTag] == saturday) {
-                            days.add(DateTime.saturday);
-                          } else if (i[weekTag] == sunday) {
-                            days.add(DateTime.sunday);
+                    if (_hasTag.value && listNotifier.items.isNotEmpty) {
+                      dev.log('IS HASH TAG!!!!!!!');
+                      for (final i in _foundTags) {
+                        final check = i[checkedTag] as RxBool;
+                        if (check.value == true) {
+                          try {
+                            final test = await _notesService.createTag(
+                              user: widget.user!,
+                              note: _notes!,
+                              tagName: (i[tagTag] as String),
+                              isCheckedForSpecificTag: check.value,
+                            );
+                            dev.log('test: ${test.toString()}');
+                          } on TagExistsForSpecificNote {
+                            //do nothing
                           }
                         }
                       }
-                      await NotificationService.getInstance()
-                          .showNotificationWeekly(
-                        id: 0,
-                        title: _tittleEditingController.text,
-                        body: DateFormat('EEEE', 'en_US').format(_dateTime!),
-                        scheduledDate: _dateTime!,
-                        days: days,
-                      );
                     }
-                  }
-                  if (context.mounted) {
-                    Navigator.of(context).pop();
+                    if (context.mounted) {
+                      Navigator.of(context).pop();
+                    }
+                  } on UnselectedWeekExceptioon catch (e) {
+                    await showExceptionDialog(
+                      title: e.code,
+                      content:
+                          'you haven\'t selected any week. please select one to continue or change the repeat status.',
+                      context: context,
+                    );
                   }
                 },
               ),
@@ -1151,13 +1260,13 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                   child: Center(
                     child: Column(
                       children: [
-                        Container(
-                          child: (_image != null
+                        Obx(
+                          () => (_imagePath.value.isNotEmpty
                               ? Stack(
                                   alignment: AlignmentDirectional.bottomEnd,
                                   children: [
                                     Image.file(
-                                      _image!,
+                                      File(_imagePath.value),
                                       width: 345,
                                       height: 330,
                                       fit: BoxFit.fitWidth,
@@ -1182,35 +1291,39 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                         const SizedBox(
                           height: 15,
                         ),
-                        MyTextField(
-                          maxLines: 1,
-                          controller: _tittleEditingController,
-                          autoCorrect: false,
-                          enableSuggestions: true,
-                          obscureText: false,
-                          hintText: 'Tittle',
-                          horizontalPadding: 10,
-                          verticalPadding: 0,
-                          textInputStyle: TextStyle(
-                            color: _color,
+                        Obx(
+                          () => MyTextField(
+                            maxLines: 1,
+                            controller: _tittleEditingController,
+                            autoCorrect: false,
+                            enableSuggestions: true,
+                            obscureText: false,
+                            hintText: 'Tittle',
+                            horizontalPadding: 10,
+                            verticalPadding: 0,
+                            textInputStyle: TextStyle(
+                              color: Color(_colorValue.value),
+                            ),
                           ),
                         ),
                         const SizedBox(
                           height: 10,
                         ),
                         (!_isList
-                            ? MyTextField(
-                                controller: _textEditingController,
-                                autoCorrect: false,
-                                keyboardType: TextInputType.multiline,
-                                enableSuggestions: true,
-                                obscureText: false,
-                                hintText: 'Type your notes here...',
-                                horizontalPadding: 10,
-                                verticalPadding: 0,
-                                maxLines: null,
-                                textInputStyle: TextStyle(
-                                  color: _color,
+                            ? Obx(
+                                () => MyTextField(
+                                  controller: _textEditingController,
+                                  autoCorrect: false,
+                                  keyboardType: TextInputType.multiline,
+                                  enableSuggestions: true,
+                                  obscureText: false,
+                                  hintText: 'Type your notes here...',
+                                  horizontalPadding: 10,
+                                  verticalPadding: 0,
+                                  maxLines: null,
+                                  textInputStyle: TextStyle(
+                                    color: Color(_colorValue.value),
+                                  ),
                                 ),
                               )
                             : Column(
@@ -1363,33 +1476,38 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                               const SizedBox(
                                 width: 10,
                               ),
-                              (_setRemainder
-                                  ? RemainderWidget(
-                                      date: _dateTime,
-                                      time: _timeOfDay,
-                                      repeat: repeat!,
-                                      onDateTap: onDateTap,
-                                      onExit: () {
-                                        setState(() {
-                                          repeat = null;
-                                          _timeOfDay = TimeOfDay.now();
-                                          _dateTime = DateTime.now();
-                                          for (var week in _weeks) {
-                                            week['isChecked'] = false;
-                                          }
-                                          _setRemainder = false;
-                                        });
-                                      },
-                                      onRepeatTap: () => onRepeatTap(),
-                                      onTimeTap: onTimeTap,
-                                    )
-                                  : Text(
-                                      'No Remainder',
-                                      style: TextStyle(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .secondary),
-                                    )),
+                              Obx(
+                                () => (_setRemainder.value
+                                    ? RemainderWidget(
+                                        date: _dateTime,
+                                        time: _timeOfDay,
+                                        repeat: _repeat.value,
+                                        onDateTap: _onDateTap,
+                                        onExit: () {
+                                          _repeat.value = '';
+                                          _time.value = '';
+                                          _date.value = '';
+                                          _setRemainder.value = false;
+                                          setState(() {
+                                            _timeOfDay = TimeOfDay.now();
+                                            _dateTime = DateTime.now();
+                                            for (var week in _weeks) {
+                                              week['isChecked'] = false;
+                                            }
+                                            _isSetRemainder = false;
+                                          });
+                                        },
+                                        onRepeatTap: _onRepeatTap,
+                                        onTimeTap: _onTimeTap,
+                                      )
+                                    : Text(
+                                        'No Remainder'.obs.value,
+                                        style: TextStyle(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .secondary),
+                                      )),
+                              ),
                             ],
                           ),
                         ),
@@ -1399,7 +1517,6 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16.0),
                           child: Row(
-                            mainAxisAlignment: MainAxisAlignment.start,
                             children: [
                               Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -1413,12 +1530,10 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                                 ],
                               ),
                               Flexible(
-                                child: (listNotifier.items.isNotEmpty && _hasTag
+                                child: (listNotifier.items.isNotEmpty
                                     ? Wrap(
                                         spacing: 0,
                                         runSpacing: 0,
-                                        crossAxisAlignment:
-                                            WrapCrossAlignment.start,
                                         direction: Axis.horizontal,
                                         children: listNotifier.items
                                             .map(
@@ -1426,7 +1541,7 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                                                 constraints:
                                                     const BoxConstraints(
                                                   maxWidth: 150,
-                                                  maxHeight: 25,
+                                                  maxHeight: 26,
                                                 ),
                                                 child: Chip(
                                                   labelPadding: EdgeInsets.zero,
@@ -1438,7 +1553,7 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                                                         .secondary,
                                                   ),
                                                   label: Text(
-                                                    tags['tag'] as String,
+                                                    tags[tagTag] as String,
                                                     style: TextStyle(
                                                       color: Theme.of(context)
                                                           .colorScheme
@@ -1460,7 +1575,7 @@ class _CreateNewNoteState extends State<CreateNewNote> {
                           ),
                         ),
                         const SizedBox(
-                          height: 10,
+                          height: 20,
                         ),
                       ],
                     ),
@@ -1488,4 +1603,9 @@ class CouldNotPickImageException implements Exception {
 class CouldNotCaptureImageException implements Exception {
   final code = 'could not capture image';
   const CouldNotCaptureImageException();
+}
+
+class UnselectedWeekExceptioon implements Exception {
+  final code = 'select a week';
+  const UnselectedWeekExceptioon();
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:mynotes_x/Pages/auth.dart';
-import 'package:mynotes_x/Pages/create_notes_view.dart';
+import 'package:mynotes_x/Pages/create_update_notes_view.dart';
 import 'package:mynotes_x/Pages/home_view.dart';
 import 'package:mynotes_x/Pages/login_view.dart';
 import 'package:mynotes_x/Pages/show_tags.dart';
@@ -20,7 +21,7 @@ void main() async {
   runApp(
     ChangeNotifierProvider(
       create: (context) => ListNotifier(),
-      child: MaterialApp(
+      child: GetMaterialApp(
         debugShowCheckedModeBanner: false,
         title: 'My Notes',
         theme: lightMode,
@@ -28,7 +29,7 @@ void main() async {
         themeMode: ThemeMode.system,
         home: const MyApp(),
         routes: {
-          createNotesRoute: (context) => const CreateNewNote(),
+          createOrUpdateNotesRoute: (context) => const CreateUpdateNewNote(),
           loginRoute: (context) => const LoginView(),
           homeRoute: (context) => const HomePage(),
           showTagsRoute: (context) => const UserTags(),

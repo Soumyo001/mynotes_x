@@ -7,6 +7,7 @@ class TextWithCheckBox extends StatefulWidget {
   final String? secondaryIndex;
   final bool isMainIndexController;
   final bool icon;
+  final bool? checkValue;
   final TextDecoration? textDecoration;
   final double? fontSize;
   final double? textLeftPadding;
@@ -18,6 +19,7 @@ class TextWithCheckBox extends StatefulWidget {
     this.secondaryIndex,
     this.textDecoration,
     this.fontSize,
+    this.checkValue,
     required this.icon,
     required this.isMainIndexController,
     required this.textLeftPadding,
@@ -69,7 +71,8 @@ class _TextWithCheckBoxState extends State<TextWithCheckBox> {
               borderRadius: BorderRadius.circular(5),
             ),
             checkColor: Theme.of(context).colorScheme.primary,
-            value: widget.value[widget.secondaryIndex ?? 'isChecked'] as bool?,
+            value: (widget.checkValue ??
+                widget.value[widget.secondaryIndex ?? 'isChecked'] as bool?),
             onChanged: widget.onChanged,
           ),
         ],

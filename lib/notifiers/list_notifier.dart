@@ -22,6 +22,11 @@ class ListNotifier with ChangeNotifier {
     notifyListeners();
   }
 
+  void removeItem(Map<dynamic, dynamic> item) {
+    _items.remove(item);
+    notifyListeners();
+  }
+
   void updateItem(int index, Map<dynamic, dynamic> newItem) {
     if (index >= 0 && index < _items.length) {
       _items[index] = newItem;

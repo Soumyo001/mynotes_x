@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:mynotes_x/components/tag_tile.dart';
+import 'package:mynotes_x/Pages/tags_list_view.dart';
 import 'package:mynotes_x/services/crud/notes_service.dart';
-
-enum TagOptions { edit, delete }
 
 class UserTags extends StatefulWidget {
   final DatabaseUser? user;
@@ -53,72 +51,28 @@ class _UserTagsState extends State<UserTags> {
           switch (snapshot.connectionState) {
             case ConnectionState.waiting:
             case ConnectionState.active:
-              List<DatabaseTagsForUser> tags = [];
               if (snapshot.hasData) {
-                tags = snapshot.data as List<DatabaseTagsForUser>;
-              }
-              print(tags);
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10.0),
-                child: Center(
-                  child: ListView.builder(
-                    itemCount: tags.length,
-                    itemBuilder: (context, index) {
-                      final tag = tags[index];
-                      return TagTile(
-                        title: tag.tagName,
-                        trailing: PopupMenuButton<TagOptions>(
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10)),
-                          onSelected: (value) async {
-                            switch (value) {
-                              case TagOptions.edit:
-                                break;
-                              case TagOptions.delete:
-                                print('object');
-                                break;
-                              default:
-                                break;
-                            }
-                          },
-                          itemBuilder: (BuildContext context) {
-                            return [
-                              PopupMenuItem<TagOptions>(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16.0),
-                                value: TagOptions.edit,
-                                child: Text(
-                                  'Edit',
-                                  style: TextStyle(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .inversePrimary,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                              PopupMenuItem<TagOptions>(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16.0),
-                                value: TagOptions.delete,
-                                child: Text(
-                                  'Delete',
-                                  style: TextStyle(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .inversePrimary,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ];
-                          },
-                        ),
+                final List<DatabaseTagsForUser> tags =
+                    snapshot.data as List<DatabaseTagsForUser>;
+                return Center(
+                  child: TagsListView(
+                    tags: tags,
+                    onDeleteCallback: (databaseTagsForUser) async {
+                      await _notesService.deleteTag(
+                        user: widget.user!,
+                        databaseTagsForUser: databaseTagsForUser,
                       );
                     },
                   ),
-                ),
-              );
+                );
+              } else {
+                return Center(
+                  child: CircularProgressIndicator(
+                    color: Theme.of(context).colorScheme.inversePrimary,
+                  ),
+                );
+              }
+
             default:
               return Center(
                 child: CircularProgressIndicator(

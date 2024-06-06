@@ -1,9 +1,11 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 import 'package:mynotes_x/services/auth/auth_exceptions.dart';
 import 'package:mynotes_x/services/auth/auth_service.dart';
-import 'package:mynotes_x/utilities/show_error_dialog.dart';
+import 'package:mynotes_x/utilities/error_dialog.dart';
 
 class VerifyEmail extends StatefulWidget {
   const VerifyEmail({super.key});

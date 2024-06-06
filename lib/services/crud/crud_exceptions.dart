@@ -27,3 +27,11 @@ class NoTagsAvailableForUserException implements Exception {}
 class TagAlreadyExistsException implements Exception {}
 
 class TagExistsForSpecificNote implements Exception {}
+
+class CouldNotFindRemainderForThisNoteException implements Exception {}
+
+class CouldNotUpdateRemainderException implements Exception {}
+
+class CouldNotDeleteRemainderException implements Exception {}
+
+class CouldNotDeleteTagFromSpecificNoteException implements Exception {}

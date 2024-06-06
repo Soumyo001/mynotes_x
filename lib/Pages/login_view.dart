@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:mynotes_x/components/my_button.dart';
 import 'package:mynotes_x/components/my_text_field.dart';
@@ -6,6 +8,7 @@ import 'package:mynotes_x/services/auth/auth_exceptions.dart';
 import 'package:mynotes_x/services/auth/auth_service.dart';
 import 'package:mynotes_x/services/facebook_auth/facebook_auth_service.dart';
 import 'package:mynotes_x/services/google_auth/google_auth_service.dart';
+import 'package:mynotes_x/utilities/error_dialog.dart';
 
 class LoginView extends StatefulWidget {
   final void Function()? onTap;
@@ -19,40 +22,6 @@ class _LoginViewState extends State<LoginView> {
   late final TextEditingController _email;
   late final TextEditingController _password;
   bool obscureText = true;
-
-  Future<void> showErrorDialog(String messege) {
-    return showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: Colors.purpleAccent,
-          icon: const Icon(
-            Icons.error,
-            color: Colors.black,
-          ),
-          title: Text(
-            messege,
-            style: const TextStyle(
-              color: Colors.black,
-              fontSize: 17,
-            ),
-          ),
-          actions: [
-            MaterialButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              highlightColor: Colors.black87.withOpacity(0.5),
-              child: const Text(
-                'OK',
-                style: TextStyle(color: Colors.black87),
-              ),
-            )
-          ],
-        );
-      },
-    );
-  }
 
   void showCircularProgressIndicator(BuildContext context) {
     showDialog(
@@ -104,17 +73,20 @@ class _LoginViewState extends State<LoginView> {
       if (mounted) {
         Navigator.of(context).pop();
       }
-      await showErrorDialog(e.code);
+      //ignore async context
+      await showErrorDialog(context: context, messege: e.code);
     } on GenericException catch (e) {
       if (mounted) {
         Navigator.of(context).pop();
       }
-      await showErrorDialog(e.code);
+      await showErrorDialog(context: context, messege: e.code);
     } catch (e) {
       if (mounted) {
         Navigator.of(context).pop();
       }
-      await showErrorDialog('Not from own class exceptions: ${e.toString()}');
+      await showErrorDialog(
+          context: context,
+          messege: 'Not from own class exceptions: ${e.toString()}');
     }
   }
 
@@ -135,17 +107,19 @@ class _LoginViewState extends State<LoginView> {
       if (mounted) {
         Navigator.of(context).pop();
       }
-      await showErrorDialog(e.code);
+      await showErrorDialog(context: context, messege: e.code);
     } on GenericException catch (e) {
       if (mounted) {
         Navigator.of(context).pop();
       }
-      await showErrorDialog(e.code);
+      await showErrorDialog(context: context, messege: e.code);
     } catch (e) {
       if (mounted) {
         Navigator.of(context).pop();
       }
-      await showErrorDialog('not from own class exceptions: ${e.toString()}');
+      await showErrorDialog(
+          context: context,
+          messege: 'not from own class exceptions: ${e.toString()}');
     }
   }
 
@@ -153,9 +127,11 @@ class _LoginViewState extends State<LoginView> {
     try {
       await FAuthService.firebase().logIn();
     } on GenericException catch (e) {
-      await showErrorDialog(e.code);
+      await showErrorDialog(context: context, messege: e.code);
     } catch (e) {
-      await showErrorDialog('not from own class exceptions: ${e.toString()}');
+      await showErrorDialog(
+          context: context,
+          messege: 'not from own class exceptions: ${e.toString()}');
     }
   }
 

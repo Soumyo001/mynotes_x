@@ -7,6 +7,7 @@ class MyDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Drawer(
+      shadowColor: Theme.of(context).colorScheme.shadow,
       backgroundColor: Theme.of(context).colorScheme.background,
       child: child,
     );

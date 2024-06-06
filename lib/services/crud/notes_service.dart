@@ -4,6 +4,7 @@ import 'package:mynotes_x/services/crud/crud_exceptions.dart';
 import 'package:mynotes_x/utilities/constants.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 import 'dart:developer' as dev;
 
@@ -20,7 +21,6 @@ class NotesService {
   Stream<List<DatabaseTagsForUser>> get allTags => _tagStreamController.stream;
 
   NotesService._sharedObject() {
-    dev.log('notes service initiated');
     _noteStreamController = StreamController<List<DatabaseNotes>>.broadcast(
       onListen: () {
         _noteStreamController.sink.add(_notes);
@@ -48,10 +48,16 @@ class NotesService {
     dev.log('get or create user called: $email');
     try {
       final user = await getUser(email: email);
+      await _createDefaultTags(user);
+      await _cacheAllNotes(user.userID);
+      await _cacheAllTags(user.userID);
       dev.log('get user called');
       return user;
     } on UserDoesNotExistsException {
       final createdUser = await createUser(email: email);
+      await _createDefaultTags(createdUser);
+      await _cacheAllNotes(createdUser.userID);
+      await _cacheAllTags(createdUser.userID);
       dev.log(' create user called');
       return createdUser;
     } catch (e) {
@@ -60,19 +66,40 @@ class NotesService {
     }
   }
 
-  Future<void> _cacheAllNotes() async {
+  Future<void> _createDefaultTags(DatabaseUser user) async {
+    dev.log('entered create default tag');
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    dev.log('set bool ');
+    bool defaultTagsInserted = prefs.getBool('defaultTagsInserted') ?? false;
+    dev.log(defaultTagsInserted.toString());
+    if (!defaultTagsInserted) {
+      try {
+        await NotesService().saveUserTag(user: user, tagName: 'inspiration');
+        await NotesService().saveUserTag(user: user, tagName: 'work');
+        await NotesService().saveUserTag(user: user, tagName: 'piano');
+      } on TagAlreadyExistsException {
+        //do nothing
+      }
+      prefs.setBool('defaultTagsInserted', true);
+    }
+  }
+
+  Future<void> _cacheAllNotes(int userId) async {
     try {
-      final allNotes = await getAllNote();
+      _notes.clear();
+      final allNotes = await getAllNote(userId);
       _notes = allNotes.toList();
       _noteStreamController.add(_notes);
     } on CouldNotFindNoteException {
       //do nothing
+      dev.log('Exception on cache all notes');
     }
   }
 
-  Future<void> _cacheAllTags() async {
+  Future<void> _cacheAllTags(int userId) async {
     try {
-      final allTags = await getAllTags();
+      _tags.clear();
+      final allTags = await getAllTags(userId);
       _tags = allTags.toList();
       _tagStreamController.add(_tags);
       dev.log('_tags cached : ${_tags.toString()}');
@@ -104,8 +131,6 @@ class NotesService {
       await db.execute(createTagsTable);
       await db.execute(createUserTagsTable);
       await db.execute(createRemainderTable);
-      await _cacheAllNotes();
-      await _cacheAllTags();
     } on MissingPlatformDirectoryException {
       throw UnableToGetDocumentDirectoryException();
     }
@@ -190,6 +215,10 @@ class NotesService {
     const tittle = '';
     const text = '';
     const imagePath = '';
+    const textColor = 4278190080;
+    const time = '';
+    const date = '';
+    const repeatStatus = '';
     final noteID = await db.insert(
       notesTable,
       {
@@ -197,6 +226,10 @@ class NotesService {
         noteTittleColumn: tittle,
         noteTextColumn: text,
         noteImagePathColumn: imagePath,
+        noteTextColorColumn: textColor,
+        remainderDateColumn: date,
+        remainderTimeColumn: time,
+        remainderRepeatStatusColumn: repeatStatus,
       },
     );
     final note = DatabaseNotes(
@@ -205,6 +238,10 @@ class NotesService {
       tittle: tittle,
       text: text,
       imagePath: imagePath,
+      textColor: textColor,
+      date: date,
+      time: time,
+      repeatStatus: repeatStatus,
     );
     _notes.add(note);
     _noteStreamController.add(_notes);
@@ -232,11 +269,13 @@ class NotesService {
     return note;
   }
 
-  Future<Iterable<DatabaseNotes>> getAllNote() async {
+  Future<Iterable<DatabaseNotes>> getAllNote(int userId) async {
     await _ensureDbIsOpened();
     final db = _getDatabaseOrThrow();
     final results = await db.query(
       notesTable,
+      where: 'user_id = ?',
+      whereArgs: [userId],
     );
 
     if (results.isEmpty) {
@@ -276,7 +315,11 @@ class NotesService {
     required DatabaseNotes noteToBeUpdated,
     required String? tittle,
     required String? text,
+    required int textColor,
     required String? imagePath,
+    required String time,
+    required String date,
+    required String repeatStatus,
   }) async {
     await _ensureDbIsOpened();
     final db = _getDatabaseOrThrow();
@@ -288,7 +331,11 @@ class NotesService {
       {
         noteTittleColumn: tittle,
         noteTextColumn: text,
-        noteImagePathColumn: imagePath,
+        noteImagePathColumn: imagePath!,
+        noteTextColorColumn: textColor,
+        remainderDateColumn: date,
+        remainderTimeColumn: time,
+        remainderRepeatStatusColumn: repeatStatus,
       },
       where: 'note_id = ?',
       whereArgs: [
@@ -313,6 +360,11 @@ class NotesService {
   }) async {
     await _ensureDbIsOpened();
     final db = _getDatabaseOrThrow();
+
+    final userFromDb = await getUser(email: user.email);
+    if (userFromDb != user) {
+      throw UserDoesNotExistsException();
+    }
 
     final result = await db.query(
       userTagTable,
@@ -348,6 +400,7 @@ class NotesService {
     required DatabaseUser user,
     required DatabaseNotes note,
     required String tagName,
+    required bool isCheckedForSpecificTag,
   }) async {
     await _ensureDbIsOpened();
     final db = _getDatabaseOrThrow();
@@ -381,30 +434,22 @@ class NotesService {
         userIdColumn: user.userID,
         noteIdColumn: note.noteID,
         tagTextColumn: tagName,
+        isCheckedColumn: (isCheckedForSpecificTag ? 1 : 0),
       },
     );
-
-    try {
-      await saveUserTag(
-        user: user,
-        tagName: tagName,
-      );
-    } on TagAlreadyExistsException {
-      dev.log('handled duplicates');
-      //do notgin
-    }
 
     return DatabaseTags(
       tagId: tagId,
       userId: user.userID,
       noteId: note.noteID,
       tagName: tagName,
+      isCheckedForSpecificTag: isCheckedForSpecificTag,
     );
   }
 
   Future<Iterable<DatabaseTags>> getTagsForSpecificNote({
     required DatabaseUser user,
-    required DatabaseNotes notes,
+    required DatabaseNotes note,
   }) async {
     await _ensureDbIsOpened();
     final db = _getDatabaseOrThrow();
@@ -417,7 +462,7 @@ class NotesService {
       where: 'user_id = ? and note_id = ?',
       whereArgs: [
         user.userID,
-        notes.noteID,
+        note.noteID,
       ],
     );
     if (result.isEmpty) {
@@ -473,10 +518,14 @@ class NotesService {
     return DatabaseTagsForUser.fromRow(result.first);
   }
 
-  Future<Iterable<DatabaseTagsForUser>> getAllTags() async {
+  Future<Iterable<DatabaseTagsForUser>> getAllTags(int userId) async {
     await _ensureDbIsOpened();
     final db = _getDatabaseOrThrow();
-    final result = await db.query(userTagTable);
+    final result = await db.query(
+      userTagTable,
+      where: 'user_id = ?',
+      whereArgs: [userId],
+    );
     if (result.isEmpty) {
       throw CouldNotFindTagsException();
     }
@@ -544,22 +593,21 @@ class NotesService {
   }
 
   Future<void> _deleteUserTag({
-    required DatabaseUser user,
     required DatabaseTagsForUser tag,
   }) async {
     await _ensureDbIsOpened();
     final db = _getDatabaseOrThrow();
     final deleteCount = await db.delete(
       userTagTable,
-      where: 'user_id = ? and tag_id = ?',
+      where: 'tag_id = ?',
       whereArgs: [
-        user.userID,
         tag.tagId,
       ],
     );
     if (deleteCount == 0) {
       throw CouldNotDeleteTagsException();
     }
+    dev.log('deleted from user tag table: ${tag.toString()}');
     _tags.removeWhere((element) => element.tagId == tag.tagId);
     _tagStreamController.add(_tags);
   }
@@ -570,18 +618,45 @@ class NotesService {
   }) async {
     await _ensureDbIsOpened();
     final db = _getDatabaseOrThrow();
+    try {
+      final deleteCount = await db.delete(
+        tagTable,
+        where: 'user_id = ? and tag_name = ?',
+        whereArgs: [
+          user.userID,
+          databaseTagsForUser.tagName,
+        ],
+      );
+      if (deleteCount == 0) {
+        throw CouldNotDeleteTagsException();
+      }
+    } on CouldNotDeleteTagsException {
+      //do nothing
+      dev.log('CouldNotDeleteTagsException called!!!');
+    }
+    dev.log('deleted tag from tag table: ${databaseTagsForUser.toString()}');
+    await _deleteUserTag(tag: databaseTagsForUser);
+  }
+
+  Future<void> deleteTagFromSpecificNote({
+    required DatabaseUser user,
+    required DatabaseNotes notes,
+    required String tagName,
+  }) async {
+    await _ensureDbIsOpened();
+    final db = _getDatabaseOrThrow();
     final deleteCount = await db.delete(
       tagTable,
-      where: 'user_id = ? and tag_name = ?',
+      where: 'user_id = ? and note_id = ? and tag_name = ?',
       whereArgs: [
         user.userID,
-        databaseTagsForUser.tagName,
+        notes.noteID,
+        tagName,
       ],
     );
     if (deleteCount == 0) {
-      throw CouldNotDeleteTagsException();
+      throw CouldNotDeleteTagFromSpecificNoteException();
     }
-    await _deleteUserTag(user: user, tag: databaseTagsForUser);
   }
 }
 
@@ -613,9 +688,13 @@ class DatabaseUser {
 class DatabaseNotes {
   final int noteID;
   final int userID;
+  final int textColor;
   final String tittle;
   final String text;
-  final String? imagePath;
+  final String imagePath;
+  final String date;
+  final String time;
+  final String repeatStatus;
 
   const DatabaseNotes({
     required this.noteID,
@@ -623,6 +702,10 @@ class DatabaseNotes {
     required this.tittle,
     required this.text,
     required this.imagePath,
+    required this.textColor,
+    required this.date,
+    required this.time,
+    required this.repeatStatus,
   });
 
   DatabaseNotes.fromRow(Map<String, Object?> map)
@@ -630,11 +713,15 @@ class DatabaseNotes {
         userID = map[userIdColumn] as int,
         tittle = map[noteTittleColumn] as String,
         text = map[noteTextColumn] as String,
-        imagePath = map[noteImagePathColumn] as String;
+        imagePath = map[noteImagePathColumn] as String,
+        textColor = map[noteTextColorColumn] as int,
+        date = map[remainderDateColumn] as String,
+        time = map[remainderTimeColumn] as String,
+        repeatStatus = map[remainderRepeatStatusColumn] as String;
 
   @override
   String toString() =>
-      'Notes, Note ID = $noteID, User ID = $userID, Tittle = $tittle, Text = $text, ImagePath = $imagePath';
+      'Notes, Note ID = $noteID, User ID = $userID, Tittle = $tittle, Text = $text, ImagePath = $imagePath, remainder_date = $date, remainder_time = $time, remainder_repeat_status = $repeatStatus';
 
   @override
   bool operator ==(covariant DatabaseNotes other) => noteID == other.noteID;
@@ -649,23 +736,27 @@ class DatabaseTags {
   final int userId;
   final int noteId;
   final String tagName;
+  final bool isCheckedForSpecificTag;
 
   const DatabaseTags({
     required this.tagId,
     required this.userId,
     required this.noteId,
     required this.tagName,
+    required this.isCheckedForSpecificTag,
   });
 
   DatabaseTags.fromRow(Map<String, Object?> row)
       : tagId = row[tagIdColumn] as int,
         userId = row[userIdColumn] as int,
         noteId = row[noteIdColumn] as int,
-        tagName = row[tagTextColumn] as String;
+        tagName = row[tagTextColumn] as String,
+        isCheckedForSpecificTag =
+            ((row[isCheckedColumn] as int) == 1 ? true : false);
 
   @override
   String toString() =>
-      'Tag, tag_id = $tagId, user_id = $userId, note_id = $noteId, tag_name = $tagName';
+      'Tag, tag_id = $tagId, user_id = $userId, note_id = $noteId, tag_name = $tagName, is_checked = $isCheckedForSpecificTag';
 
   @override
   bool operator ==(covariant DatabaseTags other) => tagId == other.tagId;

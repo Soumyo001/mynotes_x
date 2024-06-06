@@ -1,4 +1,7 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
+import 'package:mynotes_x/Pages/create_update_notes_view.dart';
 import 'package:mynotes_x/Pages/show_tags.dart';
 import 'package:mynotes_x/components/drawer.dart';
 import 'package:mynotes_x/components/drawer_tile.dart';
@@ -10,8 +13,8 @@ import 'package:mynotes_x/services/google_auth/google_auth_service.dart';
 import 'package:mynotes_x/tabs/all_notes.dart';
 import 'package:mynotes_x/tabs/bookmarked_notes.dart';
 import 'package:mynotes_x/tabs/important_notes.dart';
-import 'package:mynotes_x/utilities/constants.dart';
-import 'package:mynotes_x/utilities/show_error_dialog.dart';
+import 'package:mynotes_x/utilities/error_dialog.dart';
+import 'package:mynotes_x/utilities/logout_dialog.dart';
 
 enum MenuActions { logout }
 
@@ -35,7 +38,6 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     _notesService = NotesService();
-
     super.initState();
   }
 
@@ -48,7 +50,7 @@ class _HomePageState extends State<HomePage> {
         appBar: AppBar(
           foregroundColor: Colors.transparent,
           title: const Text(
-            'N o t e s',
+            'N O T E S',
             textAlign: TextAlign.center,
           ),
           centerTitle: true,
@@ -59,7 +61,11 @@ class _HomePageState extends State<HomePage> {
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
           extendedIconLabelSpacing: 10,
           onPressed: () {
-            Navigator.of(context).pushNamed(createNotesRoute);
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => CreateUpdateNewNote(user: databaseUser!),
+              ),
+            );
           },
           label: Text(
             'Create',
@@ -72,6 +78,7 @@ class _HomePageState extends State<HomePage> {
             color: Theme.of(context).colorScheme.inversePrimary,
           ),
         ),
+        drawerEnableOpenDragGesture: false,
         drawer: MyDrawer(
           child: SingleChildScrollView(
             child: Column(
@@ -100,7 +107,7 @@ class _HomePageState extends State<HomePage> {
                   title: 'L o g o u t',
                   leadingIcon: const Icon(Icons.logout),
                   onTap: () async {
-                    if (await showLogoutDialog(context)) {
+                    if (await showLogoutDialog(context: context)) {
                       try {
                         await AuthService.firebase().logOut();
                         await GAuthService.firebase().signOut();
@@ -168,128 +175,105 @@ class _HomePageState extends State<HomePage> {
               case ConnectionState.done:
                 if (snapshot.hasData) {
                   databaseUser = snapshot.data as DatabaseUser;
-                  return StreamBuilder(
-                    stream: _notesService.allNotes,
-                    builder: (context, snapshot) {
-                      switch (snapshot.connectionState) {
-                        case ConnectionState.waiting:
-                        case ConnectionState.active:
-                          return SafeArea(
-                            child: Center(
-                              child: Column(
-                                children: [
-                                  const SizedBox(
-                                    height: 15,
-                                  ),
-                                  TabBar(
-                                    indicatorColor: Colors.transparent,
-                                    indicatorSize: TabBarIndicatorSize.tab,
-                                    indicator: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(50.0),
-                                      color:
-                                          Theme.of(context).colorScheme.primary,
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .primary
-                                              .withOpacity(0.3),
-                                          spreadRadius: 1.0,
-                                          blurRadius: 15.0,
-                                          offset: const Offset(5.0, 6.0),
-                                        ),
-                                        BoxShadow(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .inversePrimary
-                                              .withOpacity(0.13),
-                                          spreadRadius: 1.0,
-                                          blurRadius: 15.0,
-                                          offset: const Offset(-5.0, -4.0),
-                                        ),
-                                      ],
-                                    ),
-                                    labelStyle: TextStyle(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .inversePrimary,
-                                      fontSize: 14,
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10.0,
-                                    ),
-                                    dividerHeight: 0,
-                                    unselectedLabelStyle: TextStyle(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .inversePrimary,
-                                      fontSize: 13,
-                                    ),
-                                    tabAlignment: TabAlignment.fill,
-                                    tabs: [
-                                      Tab(
-                                        child: Center(
-                                          child: Text(
-                                            'All',
-                                            style: TextStyle(
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .inversePrimary,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      Tab(
-                                        child: Center(
-                                          child: Text(
-                                            'Important',
-                                            style: TextStyle(
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .inversePrimary,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      Tab(
-                                        child: Center(
-                                          child: Text(
-                                            'Bookmarked',
-                                            style: TextStyle(
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .inversePrimary,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  Expanded(
-                                    child: TabBarView(
-                                      children: [
-                                        AllNotes(
-                                          email: userEmail,
-                                          payload: widget.payload,
-                                        ),
-                                        const ImportantNotes(),
-                                        const BookmarkedNotes(),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
+                  return SafeArea(
+                    child: Center(
+                      child: Column(
+                        children: [
+                          const SizedBox(
+                            height: 15,
+                          ),
+                          TabBar(
+                            indicatorColor: Colors.transparent,
+                            indicatorSize: TabBarIndicatorSize.tab,
+                            indicator: BoxDecoration(
+                              borderRadius: BorderRadius.circular(50.0),
+                              color: Theme.of(context).colorScheme.primary,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Theme.of(context).colorScheme.shadow,
+                                  spreadRadius: 1.0,
+                                  blurRadius: 15.0,
+                                  offset: const Offset(5.0, 6.0),
+                                ),
+                                BoxShadow(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .primary
+                                      .withOpacity(0.09),
+                                  spreadRadius: 1.0,
+                                  blurRadius: 15.0,
+                                  offset: const Offset(-5.0, -4.0),
+                                ),
+                              ],
                             ),
-                          );
-                        default:
-                          return Center(
-                            child: CircularProgressIndicator(
+                            labelStyle: TextStyle(
                               color:
                                   Theme.of(context).colorScheme.inversePrimary,
+                              fontSize: 14,
                             ),
-                          );
-                      }
-                    },
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10.0,
+                            ),
+                            dividerHeight: 0,
+                            unselectedLabelStyle: TextStyle(
+                              color:
+                                  Theme.of(context).colorScheme.inversePrimary,
+                              fontSize: 13,
+                            ),
+                            tabAlignment: TabAlignment.fill,
+                            tabs: [
+                              Tab(
+                                child: Center(
+                                  child: Text(
+                                    'All',
+                                    style: TextStyle(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .inversePrimary,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Tab(
+                                child: Center(
+                                  child: Text(
+                                    'Important',
+                                    style: TextStyle(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .inversePrimary,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Tab(
+                                child: Center(
+                                  child: Text(
+                                    'Bookmarked',
+                                    style: TextStyle(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .inversePrimary,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          Expanded(
+                            child: TabBarView(
+                              children: [
+                                AllNotes(
+                                  user: databaseUser!,
+                                ),
+                                const ImportantNotes(),
+                                const BookmarkedNotes(),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   );
                 } else {
                   return Center(
@@ -312,44 +296,3 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
-
-Future<bool> showLogoutDialog(BuildContext context) => showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: Theme.of(context).colorScheme.secondary,
-          title: Text(
-            'Logout',
-            style:
-                TextStyle(color: Theme.of(context).colorScheme.inversePrimary),
-          ),
-          content: Text(
-            'Are you sure you want to logout ?',
-            style:
-                TextStyle(color: Theme.of(context).colorScheme.inversePrimary),
-          ),
-          actions: [
-            MaterialButton(
-              child: Text(
-                'Logout',
-                style: TextStyle(
-                    color: Theme.of(context).colorScheme.inversePrimary),
-              ),
-              onPressed: () {
-                Navigator.of(context).pop(true);
-              },
-            ),
-            MaterialButton(
-              child: Text(
-                'Cancel',
-                style: TextStyle(
-                    color: Theme.of(context).colorScheme.inversePrimary),
-              ),
-              onPressed: () {
-                Navigator.of(context).pop(false);
-              },
-            ),
-          ],
-        );
-      },
-    ).then((value) => value ?? false);
