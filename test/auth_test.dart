@@ -277,4 +277,30 @@ class MockAuthProvider implements CustomAuthProvider {
     );
     _user = newUser;
   }
+
+  @override
+  Future<void> sendPasswordResetEmail(String email) async {
+    if (!_isInitialized) throw NotInitializedException();
+    final user = _user;
+    if (user == null) throw const GenericException(code: 'user-not-found');
+    await Future.delayed(
+      const Duration(
+        seconds: 1,
+      ),
+    );
+  }
+
+  @override
+  Future<void> deleteAccount() async {
+    if (!_isInitialized) throw NotInitializedException();
+    var user = _user;
+    if (user == null) throw const GenericException(code: 'user-not-found');
+    await Future.delayed(
+      const Duration(
+        seconds: 1,
+      ),
+    );
+    user = null;
+    _user = null;
+  }
 }

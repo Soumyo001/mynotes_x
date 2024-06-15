@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 ThemeData lightMode = ThemeData(
   brightness: Brightness.light,
+  scaffoldBackgroundColor: Colors.grey.shade300,
   datePickerTheme: DatePickerThemeData(
     dividerColor: Colors.transparent,
     shadowColor: Colors.grey.shade400,
@@ -56,12 +57,6 @@ ThemeData lightMode = ThemeData(
       fontSize: 22,
     ),
   ),
-  iconButtonTheme: IconButtonThemeData(
-    style: ElevatedButton.styleFrom(
-      foregroundColor: Colors.grey,
-      shadowColor: Colors.grey.shade500,
-    ),
-  ),
   colorScheme: ColorScheme.light(
     background: Colors.grey.shade300,
     primary: Colors.grey.shade200,
@@ -74,6 +69,7 @@ ThemeData lightMode = ThemeData(
 
 ThemeData darkMode = ThemeData(
   brightness: Brightness.dark,
+  scaffoldBackgroundColor: Colors.grey.shade900,
   datePickerTheme: DatePickerThemeData(
     dividerColor: Colors.transparent,
     surfaceTintColor: Colors.grey.shade800,

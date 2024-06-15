@@ -17,5 +17,7 @@ abstract class CustomAuthProvider {
   Future<void> logOut();
   Future<void> sendEmailverification();
   Future<void> reload();
+  Future<void> sendPasswordResetEmail(String email);
+  Future<void> deleteAccount();
   Stream<AuthUser?> onUserChanges();
 }

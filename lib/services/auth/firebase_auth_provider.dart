@@ -4,6 +4,7 @@ import 'package:mynotes_x/services/auth/auth_provider.dart';
 import 'package:mynotes_x/services/auth/auth_user.dart';
 import 'package:mynotes_x/services/auth/auth_exceptions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:developer' as dev;
 
 class FirebaseAuthProvider implements CustomAuthProvider {
   @override
@@ -117,11 +118,28 @@ class FirebaseAuthProvider implements CustomAuthProvider {
   @override
   Stream<AuthUser?> onUserChanges() async* {
     await for (var i in FirebaseAuth.instance.userChanges()) {
+      dev.log('in firebase auth provider: ${i.toString()}');
       if (i == null) {
         yield null;
       } else {
         yield AuthUser.fromFirebase(i);
       }
+    }
+  }
+
+  @override
+  Future<void> sendPasswordResetEmail(String email) async {
+    await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+  }
+
+  @override
+  Future<void> deleteAccount() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      await user.reload();
+      await user.delete();
+    } else {
+      throw CouldNotDeleteAccountException();
     }
   }
 }

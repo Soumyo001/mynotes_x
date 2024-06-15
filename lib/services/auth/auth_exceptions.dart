@@ -15,3 +15,7 @@ class NoEmailChoosenException implements Exception {
 class UserNotFoundException implements Exception {}
 
 class WeakPasswordException implements Exception {}
+
+class CouldNotDeleteAccountException implements Exception {}
+
+class NoAccountChoosenException implements Exception {}

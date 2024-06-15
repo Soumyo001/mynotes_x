@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:mynotes_x/services/crud/crud_exceptions.dart';
 import 'package:mynotes_x/utilities/constants.dart';
@@ -67,16 +68,16 @@ class NotesService {
   }
 
   Future<void> _createDefaultTags(DatabaseUser user) async {
-    dev.log('entered create default tag');
+    dev.log('entered create default tag: ${user.email}  ${user.userID}');
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     dev.log('set bool ');
     bool defaultTagsInserted = prefs.getBool('defaultTagsInserted') ?? false;
     dev.log(defaultTagsInserted.toString());
     if (!defaultTagsInserted) {
       try {
-        await NotesService().saveUserTag(user: user, tagName: 'inspiration');
-        await NotesService().saveUserTag(user: user, tagName: 'work');
-        await NotesService().saveUserTag(user: user, tagName: 'piano');
+        await saveUserTag(user: user, tagName: 'inspiration');
+        await saveUserTag(user: user, tagName: 'work');
+        await saveUserTag(user: user, tagName: 'piano');
       } on TagAlreadyExistsException {
         //do nothing
       }
@@ -130,7 +131,6 @@ class NotesService {
       await db.execute(createNotesTable);
       await db.execute(createTagsTable);
       await db.execute(createUserTagsTable);
-      await db.execute(createRemainderTable);
     } on MissingPlatformDirectoryException {
       throw UnableToGetDocumentDirectoryException();
     }
@@ -219,6 +219,11 @@ class NotesService {
     const time = '';
     const date = '';
     const repeatStatus = '';
+    const hasList = false;
+    const important = false;
+    const bookmarked = false;
+    const noteList = <Map>[];
+    dev.log('in create note function: ${jsonEncode(noteList)}');
     final noteID = await db.insert(
       notesTable,
       {
@@ -230,6 +235,10 @@ class NotesService {
         remainderDateColumn: date,
         remainderTimeColumn: time,
         remainderRepeatStatusColumn: repeatStatus,
+        hasListColumn: 0,
+        listColumn: jsonEncode(noteList),
+        impoortantColumn: 0,
+        bookmarkedColumn: 0,
       },
     );
     final note = DatabaseNotes(
@@ -242,6 +251,10 @@ class NotesService {
       date: date,
       time: time,
       repeatStatus: repeatStatus,
+      hasList: hasList,
+      noteList: const [],
+      isImportant: important,
+      isBookmarked: bookmarked,
     );
     _notes.add(note);
     _noteStreamController.add(_notes);
@@ -263,9 +276,20 @@ class NotesService {
       throw CouldNotFindNoteException();
     }
     final note = DatabaseNotes.fromRow(result.first);
-    _notes.removeWhere((note) => note.noteID == id);
-    _notes.add(note);
-    _noteStreamController.add(_notes);
+    final index =
+        _notes.indexWhere((databaseNote) => databaseNote.noteID == note.noteID);
+
+    _notes[index].tittle = note.tittle;
+    _notes[index].text = note.text;
+    _notes[index].textColor = note.textColor;
+    _notes[index].imagePath = note.imagePath;
+    _notes[index].time = note.time;
+    _notes[index].date = note.date;
+    _notes[index].repeatStatus = note.repeatStatus;
+    _notes[index].hasList = note.hasList;
+    _notes[index].noteList = note.noteList;
+    _notes[index].isImportant = note.isImportant;
+
     return note;
   }
 
@@ -302,10 +326,16 @@ class NotesService {
     _noteStreamController.add(_notes);
   }
 
-  Future<int> deleteAllNote() async {
+  Future<int> deleteAllNote(int userId) async {
     await _ensureDbIsOpened();
     final db = _getDatabaseOrThrow();
-    final count = await db.delete(notesTable);
+    final count = await db.delete(
+      notesTable,
+      where: 'user_id = ?',
+      whereArgs: [
+        userId,
+      ],
+    );
     _notes.clear();
     _noteStreamController.add(_notes);
     return count;
@@ -320,6 +350,9 @@ class NotesService {
     required String time,
     required String date,
     required String repeatStatus,
+    required bool hasList,
+    required String lists,
+    required bool important,
   }) async {
     await _ensureDbIsOpened();
     final db = _getDatabaseOrThrow();
@@ -336,6 +369,9 @@ class NotesService {
         remainderDateColumn: date,
         remainderTimeColumn: time,
         remainderRepeatStatusColumn: repeatStatus,
+        hasListColumn: (hasList ? 1 : 0),
+        listColumn: lists,
+        impoortantColumn: (important ? 1 : 0),
       },
       where: 'note_id = ?',
       whereArgs: [
@@ -346,10 +382,79 @@ class NotesService {
       throw CouldNotUpdateNotesException();
     }
     final updatedNote = await getNote(id: noteToBeUpdated.noteID);
-    _notes.removeWhere(
-      (databaseNote) => databaseNote.noteID == updatedNote.noteID,
+    final index = _notes.indexWhere(
+        (databaseNote) => databaseNote.noteID == updatedNote.noteID);
+
+    _notes[index].tittle = updatedNote.tittle;
+    _notes[index].text = updatedNote.text;
+    _notes[index].textColor = updatedNote.textColor;
+    _notes[index].imagePath = updatedNote.imagePath;
+    _notes[index].time = updatedNote.time;
+    _notes[index].date = updatedNote.date;
+    _notes[index].repeatStatus = updatedNote.repeatStatus;
+    _notes[index].hasList = updatedNote.hasList;
+    _notes[index].noteList = updatedNote.noteList;
+    _notes[index].isImportant = updatedNote.isImportant;
+
+    _noteStreamController.add(_notes);
+    return updatedNote;
+  }
+
+  Future<DatabaseNotes> updateNoteBookmark({
+    required DatabaseNotes note,
+    required isBookmarked,
+  }) async {
+    await _ensureDbIsOpened();
+    final db = _getDatabaseOrThrow();
+    await getNote(id: note.noteID);
+    final updateCount = await db.update(
+      notesTable,
+      {
+        bookmarkedColumn: (isBookmarked ? 1 : 0),
+      },
+      where: 'note_id = ?',
+      whereArgs: [
+        note.noteID,
+      ],
     );
-    _notes.add(updatedNote);
+    if (updateCount == 0) {
+      throw CouldNotUpdateNotesException();
+    }
+    final updatedNote = await getNote(id: note.noteID);
+    final index = _notes.indexWhere(
+        (databaseNote) => databaseNote.noteID == updatedNote.noteID);
+
+    _notes[index].isBookmarked = updatedNote.isBookmarked;
+    _noteStreamController.add(_notes);
+    return updatedNote;
+  }
+
+  Future<DatabaseNotes> updateNoteImportant({
+    required DatabaseNotes note,
+    required isImportant,
+  }) async {
+    await _ensureDbIsOpened();
+    final db = _getDatabaseOrThrow();
+    await getNote(id: note.noteID);
+    final updateCount = await db.update(
+      notesTable,
+      {
+        impoortantColumn: (isImportant ? 1 : 0),
+      },
+      where: 'note_id = ?',
+      whereArgs: [
+        note.noteID,
+      ],
+    );
+    if (updateCount == 0) {
+      throw CouldNotUpdateNotesException();
+    }
+    final updatedNote = await getNote(id: note.noteID);
+    final index = _notes.indexWhere(
+        (databaseNote) => databaseNote.noteID == updatedNote.noteID);
+
+    _notes[index].isImportant = isImportant;
+
     _noteStreamController.add(_notes);
     return updatedNote;
   }
@@ -532,7 +637,7 @@ class NotesService {
     return result.map((e) => DatabaseTagsForUser.fromRow(e));
   }
 
-  Future<DatabaseTagsForUser> updateUserTag({
+  Future<DatabaseTagsForUser> _updateUserTag({
     required DatabaseUser user,
     required DatabaseTagsForUser tag,
     required String tagName,
@@ -554,8 +659,8 @@ class NotesService {
       throw CouldNotUpdateTagsException();
     }
     final updatedTag = await getSpecificTag(user: user, tag: tag);
-    _tags.removeWhere((element) => element.tagId == tag.tagId);
-    _tags.add(updatedTag);
+    final index = _tags.indexWhere((element) => element.tagId == tag.tagId);
+    _tags[index].tagName = updatedTag.tagName;
     _tagStreamController.add(_tags);
     return updatedTag;
   }
@@ -585,7 +690,7 @@ class NotesService {
     if (updateCount == 0) {
       throw CouldNotUpdateTagsException();
     }
-    return await updateUserTag(
+    return await _updateUserTag(
       user: user,
       tag: databaseTags,
       tagName: tagName,
@@ -638,6 +743,29 @@ class NotesService {
     await _deleteUserTag(tag: databaseTagsForUser);
   }
 
+  Future<int> deleteAllTags(int userId) async {
+    await _ensureDbIsOpened();
+    final db = _getDatabaseOrThrow();
+    await db.delete(
+      tagTable,
+      where: 'user_id = ?',
+      whereArgs: [
+        userId,
+      ],
+    );
+
+    final count = await db.delete(
+      userTagTable,
+      where: 'user_id = ?',
+      whereArgs: [
+        userId,
+      ],
+    );
+    _tags.clear();
+    _tagStreamController.add(_tags);
+    return count;
+  }
+
   Future<void> deleteTagFromSpecificNote({
     required DatabaseUser user,
     required DatabaseNotes notes,
@@ -684,19 +812,22 @@ class DatabaseUser {
   int get hashCode => userID.hashCode;
 }
 
-@immutable
 class DatabaseNotes {
-  final int noteID;
-  final int userID;
-  final int textColor;
-  final String tittle;
-  final String text;
-  final String imagePath;
-  final String date;
-  final String time;
-  final String repeatStatus;
+  late int noteID;
+  late int userID;
+  late int textColor;
+  late String tittle;
+  late String text;
+  late String imagePath;
+  late String date;
+  late String time;
+  late String repeatStatus;
+  late bool hasList;
+  late List<NoteList>? noteList;
+  late bool isImportant;
+  late bool isBookmarked;
 
-  const DatabaseNotes({
+  DatabaseNotes({
     required this.noteID,
     required this.userID,
     required this.tittle,
@@ -706,28 +837,56 @@ class DatabaseNotes {
     required this.date,
     required this.time,
     required this.repeatStatus,
+    required this.hasList,
+    this.noteList,
+    required this.isImportant,
+    required this.isBookmarked,
   });
 
-  DatabaseNotes.fromRow(Map<String, Object?> map)
-      : noteID = map[noteIdColumn] as int,
-        userID = map[userIdColumn] as int,
-        tittle = map[noteTittleColumn] as String,
-        text = map[noteTextColumn] as String,
-        imagePath = map[noteImagePathColumn] as String,
-        textColor = map[noteTextColorColumn] as int,
-        date = map[remainderDateColumn] as String,
-        time = map[remainderTimeColumn] as String,
-        repeatStatus = map[remainderRepeatStatusColumn] as String;
+  DatabaseNotes.fromRow(Map<String, Object?> map) {
+    noteID = map[noteIdColumn] as int;
+    userID = map[userIdColumn] as int;
+    tittle = map[noteTittleColumn] as String;
+    text = map[noteTextColumn] as String;
+    imagePath = map[noteImagePathColumn] as String;
+    textColor = map[noteTextColorColumn] as int;
+    date = map[remainderDateColumn] as String;
+    time = map[remainderTimeColumn] as String;
+    repeatStatus = map[remainderRepeatStatusColumn] as String;
+    hasList = ((map[hasListColumn] as int) == 1 ? true : false);
+    if ((map[listColumn] as String).isNotEmpty) {
+      noteList = <NoteList>[];
+      final decodedJson = jsonDecode(map[listColumn] as String);
+      for (final json in (decodedJson as List)) {
+        noteList!.add(NoteList.fromJSON(json));
+      }
+    }
+    isImportant = ((map[impoortantColumn] as int) == 1 ? true : false);
+    isBookmarked = ((map[bookmarkedColumn] as int) == 1 ? true : false);
+  }
 
   @override
   String toString() =>
-      'Notes, Note ID = $noteID, User ID = $userID, Tittle = $tittle, Text = $text, ImagePath = $imagePath, remainder_date = $date, remainder_time = $time, remainder_repeat_status = $repeatStatus';
+      '\n\n Notes, Note ID = $noteID, User ID = $userID, Tittle = $tittle, Text = $text, ImagePath = $imagePath, remainder_date = $date, remainder_time = $time, remainder_repeat_status = $repeatStatus, has_list = ${hasList.toString()}, important = ${isImportant.toString()}, bookmarked = ${isBookmarked.toString()} ,\n list = ${noteList.toString()} \n';
 
   @override
   bool operator ==(covariant DatabaseNotes other) => noteID == other.noteID;
 
   @override
   int get hashCode => noteID.hashCode;
+}
+
+class NoteList {
+  bool? checked;
+  String? text;
+  NoteList({
+    this.checked,
+    this.text,
+  });
+  NoteList.fromJSON(Map<String, Object?> json) {
+    checked = json[checkedTag] as bool;
+    text = json[textTag] as String;
+  }
 }
 
 @immutable
@@ -765,13 +924,12 @@ class DatabaseTags {
   int get hashCode => tagId.hashCode;
 }
 
-@immutable
 class DatabaseTagsForUser {
-  final int tagId;
-  final int userId;
-  final String tagName;
+  late int tagId;
+  late int userId;
+  late String tagName;
 
-  const DatabaseTagsForUser({
+  DatabaseTagsForUser({
     required this.tagId,
     required this.userId,
     required this.tagName,
@@ -796,41 +954,4 @@ class DatabaseTagsForUser {
 
   @override
   int get hashCode => tagId.hashCode;
-}
-
-class DatabaseRemainders {
-  final int remainderId;
-  final int userId;
-  final int noteId;
-  final String remainderTime;
-  final String remainderDate;
-  final String remainderRepeatStatus;
-
-  DatabaseRemainders({
-    required this.remainderId,
-    required this.userId,
-    required this.noteId,
-    required this.remainderTime,
-    required this.remainderDate,
-    required this.remainderRepeatStatus,
-  });
-
-  DatabaseRemainders.fromRow(Map<String, Object?> row)
-      : remainderId = row[remainderIdColumn] as int,
-        userId = row[userIdColumn] as int,
-        noteId = row[noteIdColumn] as int,
-        remainderTime = row[remainderTimeColumn] as String,
-        remainderDate = row[remainderDateColumn] as String,
-        remainderRepeatStatus = row[remainderRepeatStatusColumn] as String;
-
-  @override
-  String toString() =>
-      'Remainder, remainder_id = $remainderId, user_id = $userId, note_id = $noteId, remainder_time = $remainderTime, remainder_date = $remainderDate, remainder_repeat = $remainderRepeatStatus';
-
-  @override
-  bool operator ==(covariant DatabaseRemainders other) =>
-      remainderId == other.remainderId;
-
-  @override
-  int get hashCode => remainderId.hashCode;
 }

@@ -27,7 +27,7 @@ if (flutterVersionName == null) {
 
 android {
     namespace "me.soumyo.mynotes"
-    compileSdk flutter.compileSdkVersion
+    compileSdk 34
     ndkVersion flutter.ndkVersion
 
     compileOptions {

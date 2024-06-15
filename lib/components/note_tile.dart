@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:mynotes_x/services/crud/notes_service.dart';
+import 'package:mynotes_x/utilities/list_display.dart';
 import 'package:popover/popover.dart';
 
 class NoteTile extends StatefulWidget {
   final int index;
   final DatabaseNotes note;
+  final bool? isBookmarkTapped;
+  final bool hasBookmarkFunctionalities;
+  final void Function()? onBookmarkTap;
   final void Function()? onEditTap;
   final void Function()? onDeleteTap;
   const NoteTile({
@@ -14,6 +17,9 @@ class NoteTile extends StatefulWidget {
     required this.note,
     required this.onEditTap,
     required this.onDeleteTap,
+    required this.hasBookmarkFunctionalities,
+    this.isBookmarkTapped,
+    this.onBookmarkTap,
   });
 
   @override
@@ -91,7 +97,7 @@ class _NoteTileState extends State<NoteTile> {
       },
       child: AnimatedContainer(
         duration: const Duration(
-          milliseconds: 95,
+          milliseconds: 100,
         ),
         margin: const EdgeInsets.all(8),
         decoration: BoxDecoration(
@@ -109,19 +115,75 @@ class _NoteTileState extends State<NoteTile> {
                     color:
                         Theme.of(context).colorScheme.primary.withOpacity(0.09),
                     spreadRadius: 1.0,
-                    blurRadius: 15.0,
+                    blurRadius: 5.0,
                     offset: const Offset(-6.0, -6.0),
                   ),
                   BoxShadow(
                     color:
                         Theme.of(context).colorScheme.shadow.withOpacity(0.8),
                     spreadRadius: 1.0,
-                    blurRadius: 15.0,
+                    blurRadius: 5.0,
                     offset: const Offset(6.0, 6.0),
                   ),
                 ]),
         ),
         child: ListTile(
+          contentPadding: const EdgeInsets.only(
+            left: 10,
+            right: 0,
+          ),
+          title: Text(
+            widget.note.tittle,
+            overflow: TextOverflow.ellipsis,
+            softWrap: true,
+            maxLines: 3,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.inversePrimary,
+              fontWeight: FontWeight.w500,
+              fontSize: 14.5,
+            ),
+          ),
+          subtitle: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxHeight: 230,
+            ),
+            child: Text(
+              widget.note.text.isEmpty
+                  ? getAsList(widget.note.noteList!)
+                  : widget.note.text,
+              softWrap: true,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.inversePrimary,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          trailing: widget.hasBookmarkFunctionalities
+              ? GestureDetector(
+                  onTap: widget.onBookmarkTap,
+                  child: SizedBox(
+                    height: 45,
+                    width: 40,
+                    child: (widget.isBookmarkTapped!
+                        ? Icon(
+                            Icons.bookmark_rounded,
+                            color: Theme.of(context).colorScheme.inversePrimary,
+                          )
+                        : Icon(
+                            Icons.bookmark_border_rounded,
+                            color: Theme.of(context).colorScheme.inversePrimary,
+                          )),
+                  ),
+                )
+              : null,
+        ),
+      ),
+    );
+  }
+}
+
+/*ListTile(
           horizontalTitleGap: 7,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 10,
@@ -141,23 +203,21 @@ class _NoteTileState extends State<NoteTile> {
               fontWeight: FontWeight.w500,
             ),
           ),
-          subtitle: Text(
-            widget.note.text,
-            softWrap: true,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.inversePrimary,
-              fontSize: 13,
+          subtitle: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxHeight: 230,
+            ),
+            child: Text(
+              widget.note.text.isEmpty
+                  ? getAsList(widget.note.noteList!)
+                  : widget.note.text,
+              softWrap: true,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.inversePrimary,
+                fontSize: 13,
+              ),
             ),
           ),
         ),
-      ).animate().scaleXY(
-            begin: 1.5,
-            duration: const Duration(
-              milliseconds: 500,
-            ),
-            curve: Curves.easeIn,
-          ),
-    );
-  }
-}
+      ) */

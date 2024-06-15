@@ -15,13 +15,14 @@ Future<T?> showGenericDialog<T>({
       return AlertDialog(
         title: Text(title),
         content: Text(content),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         actions: options.keys.map((e) {
           final value = options[e];
           return TextButton(
             style: ElevatedButton.styleFrom(
               foregroundColor: Theme.of(context).colorScheme.tertiary,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(10),
               ),
             ),
             onPressed: () {

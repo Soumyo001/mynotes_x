@@ -3,13 +3,17 @@ import 'package:mynotes_x/utilities/constants.dart';
 
 class TextFieldCheckBox extends StatefulWidget {
   final Map<dynamic, dynamic> favourite;
+  final TextEditingController controller;
   final void Function()? onPressed;
   final void Function(bool?)? onChanged;
+  final void Function(String)? onChanged2;
   const TextFieldCheckBox({
     super.key,
     required this.favourite,
     required this.onPressed,
     required this.onChanged,
+    required this.controller,
+    required this.onChanged2,
   });
 
   @override
@@ -17,8 +21,6 @@ class TextFieldCheckBox extends StatefulWidget {
 }
 
 class _TextFieldCheckBoxState extends State<TextFieldCheckBox> {
-  TextEditingController get textController => widget.favourite['controller'];
-
   @override
   Widget build(BuildContext context) {
     return Row(
@@ -37,9 +39,9 @@ class _TextFieldCheckBoxState extends State<TextFieldCheckBox> {
         ),
         Expanded(
           child: TextField(
+            onChanged: widget.onChanged2,
             keyboardType: TextInputType.multiline,
-            controller:
-                widget.favourite[controllerTag] as TextEditingController,
+            controller: widget.controller,
             style: const TextStyle(
               fontSize: 14.3,
             ),

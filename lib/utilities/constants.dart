@@ -5,6 +5,10 @@ const tagIdColumn = 'tag_id';
 const noteTextColorColumn = 'text_color';
 const remainderIdColumn = 'remainder_id';
 const tagTextColumn = 'tag_name';
+const hasListColumn = 'has_list';
+const listColumn = 'list';
+const impoortantColumn = 'is_important';
+const bookmarkedColumn = 'is_bookmarked';
 const noteTittleColumn = 'tittle';
 const noteTextColumn = 'text';
 const remainderTimeColumn = 'remainder_time';
@@ -38,6 +42,10 @@ CREATE TABLE IF NOT EXISTS "notes" (
 	"remainder_time"	TEXT,
 	"date"	TEXT,
 	"repeat_status"	TEXT,
+  "has_list"	INTEGER NOT NULL,
+  "list"	JSON NOT NULL,
+  "is_important"	INTEGER NOT NULL,
+	"is_bookmarked"	INTEGER NOT NULL,
 	PRIMARY KEY("note_id" AUTOINCREMENT),
 	FOREIGN KEY("user_id") REFERENCES "user"("user_id")
 );
@@ -66,20 +74,6 @@ CREATE TABLE IF NOT EXISTS "user_tags" (
 );
 ''';
 
-const createRemainderTable = '''
-CREATE TABLE IF NOT EXISTS "remainder" (
-	"remainder_id"	INTEGER NOT NULL UNIQUE,
-	"user_id"	INTEGER NOT NULL,
-	"note_id"	INTEGER NOT NULL,
-	"remainder_time"	TEXT ,
-	"date"	TEXT ,
-	"repeat_status"	TEXT ,
-	FOREIGN KEY("note_id") REFERENCES "notes"("note_id"),
-	FOREIGN KEY("user_id") REFERENCES "user"("user_id"),
-	PRIMARY KEY("remainder_id" AUTOINCREMENT)
-);
-''';
-
 const createOrUpdateNotesRoute = '/note/create_note/';
 const loginRoute = '/login/';
 const homeRoute = '/home/home_page/';
@@ -101,3 +95,4 @@ const weekTag = 'week';
 const tagTag = 'tag';
 const checkedTag = 'isChecked';
 const controllerTag = 'controller';
+const textTag = 'text';

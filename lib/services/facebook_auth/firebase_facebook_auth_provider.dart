@@ -20,7 +20,9 @@ class FirebaseFAuthProvider implements FAuthProvider {
     try {
       // Trigger the sign-in flow
       final LoginResult loginResult = await FacebookAuth.instance.login();
-
+      if (loginResult.accessToken == null) {
+        throw NoAccountChoosenException();
+      }
       // Create a credential from the access token
       final OAuthCredential facebookAuthCredential =
           FacebookAuthProvider.credential(loginResult.accessToken!.tokenString);
@@ -34,6 +36,8 @@ class FirebaseFAuthProvider implements FAuthProvider {
       } else {
         throw const UserNotLoggedInException();
       }
+    } on NoAccountChoosenException {
+      throw NoAccountChoosenException();
     } on FirebaseAuthException catch (e) {
       throw GenericException(code: e.code);
     } catch (e) {

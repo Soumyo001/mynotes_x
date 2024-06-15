@@ -51,4 +51,11 @@ class AuthService implements CustomAuthProvider {
 
   @override
   Stream<AuthUser?> onUserChanges() => authProvider.onUserChanges();
+
+  @override
+  Future<void> sendPasswordResetEmail(String email) =>
+      authProvider.sendPasswordResetEmail(email);
+
+  @override
+  Future<void> deleteAccount() => authProvider.deleteAccount();
 }

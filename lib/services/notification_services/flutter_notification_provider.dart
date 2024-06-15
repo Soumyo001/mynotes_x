@@ -6,13 +6,15 @@ import 'package:rxdart/rxdart.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/standalone.dart';
 import 'package:timezone/timezone.dart' as tz;
+import 'dart:developer' as dev;
 
 class FlutterNotificationProvider implements CustomNotificationProvider {
   final _notifications = FlutterLocalNotificationsPlugin();
   final _onClick = BehaviorSubject<String?>();
   String _currentZone = '';
 
-  static void _onNotificationTap(NotificationResponse notificationResponse) {
+  static void _onNotificationTap(
+      NotificationResponse notificationResponse) async {
     try {
       NotificationService.getInstance()
           .onClick
@@ -20,6 +22,18 @@ class FlutterNotificationProvider implements CustomNotificationProvider {
     } catch (e) {
       //do nothing
     }
+    // final String? payload = notificationResponse.payload;
+    // if (notificationResponse.payload != null) {
+    //   dev.log('notification payload: $payload');
+    // }
+    // try {
+    //   await Navigator.of(context as BuildContext).push(
+    //     MaterialPageRoute<void>(
+    //         builder: (context) => HomePage(payload: payload)),
+    //   );
+    // } catch (e) {
+    //   dev.log(e.toString());
+    // }
   }
 
   Future<NotificationDetails> _notificationDetails() async {

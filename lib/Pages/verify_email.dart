@@ -5,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 import 'package:mynotes_x/services/auth/auth_exceptions.dart';
 import 'package:mynotes_x/services/auth/auth_service.dart';
-import 'package:mynotes_x/utilities/error_dialog.dart';
+import 'package:mynotes_x/utilities/dialogs/error_dialog.dart';
 
 class VerifyEmail extends StatefulWidget {
   const VerifyEmail({super.key});
@@ -15,6 +15,12 @@ class VerifyEmail extends StatefulWidget {
 }
 
 class _VerifyEmailState extends State<VerifyEmail> {
+  @override
+  void initState() {
+    AuthService.firebase().sendEmailverification();
+    super.initState();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

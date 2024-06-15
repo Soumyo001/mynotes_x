@@ -4,11 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:mynotes_x/components/my_button.dart';
 import 'package:mynotes_x/components/my_text_field.dart';
 import 'package:mynotes_x/components/square_tile.dart';
+import 'package:mynotes_x/helpers/loading/loading_screen.dart';
 import 'package:mynotes_x/services/auth/auth_exceptions.dart';
 import 'package:mynotes_x/services/auth/auth_service.dart';
 import 'package:mynotes_x/services/facebook_auth/facebook_auth_service.dart';
 import 'package:mynotes_x/services/google_auth/google_auth_service.dart';
-import 'package:mynotes_x/utilities/error_dialog.dart';
+import 'package:mynotes_x/utilities/dialogs/error_dialog.dart';
 
 class RegisterView extends StatefulWidget {
   final void Function()? onTap;
@@ -44,46 +45,8 @@ class _RegisterViewState extends State<RegisterView> {
   String errorTextC = '';
   String errorTextEmail = '';
 
-  void showCircularProgressIndicator(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return Container(
-          margin: const EdgeInsets.symmetric(
-            horizontal: 80.0,
-            vertical: 340.0,
-          ),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade300,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: const Center(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircularProgressIndicator(
-                  color: Colors.black87,
-                ),
-                SizedBox(
-                  width: 10,
-                ),
-                Text(
-                  'Loading...',
-                  style: TextStyle(
-                    color: Colors.black87,
-                    fontSize: 16,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   void signUpWithEmailAndPassword() async {
-    showCircularProgressIndicator(context);
+    LoadingScreen().show(context: context, text: 'Loading...');
     try {
       await AuthService.firebase().createUser(
         email: _email.text,
@@ -92,9 +55,7 @@ class _RegisterViewState extends State<RegisterView> {
         emailPattern: emailPattern,
         passPattern: passPattern,
       );
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
+      LoadingScreen().hide();
       final user = AuthService.firebase().currentUser;
       if (user != null) {
         await AuthService.firebase().reload();
@@ -103,19 +64,13 @@ class _RegisterViewState extends State<RegisterView> {
         }
       }
     } on UserNotLoggedInException catch (e) {
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
+      LoadingScreen().hide();
       await showErrorDialog(context: context, messege: e.code);
     } on GenericException catch (e) {
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
+      LoadingScreen().hide();
       await showErrorDialog(context: context, messege: e.code);
     } catch (e) {
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
+      LoadingScreen().hide();
       await showErrorDialog(
           context: context,
           messege: 'Not from own class exceptions: ${e.toString()}');
@@ -123,12 +78,10 @@ class _RegisterViewState extends State<RegisterView> {
   }
 
   void signUpWithGoogle() async {
-    showCircularProgressIndicator(context);
+    LoadingScreen().show(context: context, text: 'Loading...');
     try {
       await GAuthService.firebase().signUp();
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
+      LoadingScreen().hide();
       final user = GAuthService.firebase().currentUser;
       if (user != null) {
         await GAuthService.firebase().reload();
@@ -137,24 +90,16 @@ class _RegisterViewState extends State<RegisterView> {
         }
       }
     } on NoEmailChoosenException {
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
+      LoadingScreen().hide();
       return;
     } on UserNotLoggedInException catch (e) {
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
+      LoadingScreen().hide();
       await showErrorDialog(context: context, messege: e.code);
     } on GenericException catch (e) {
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
+      LoadingScreen().hide();
       await showErrorDialog(context: context, messege: e.code);
     } catch (e) {
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
+      LoadingScreen().hide();
       await showErrorDialog(
           context: context,
           messege: 'not from own class exceptions: ${e.toString()}');
@@ -171,6 +116,8 @@ class _RegisterViewState extends State<RegisterView> {
           await FAuthService.firebase().sendEmailVerification();
         }
       }
+    } on NoAccountChoosenException {
+      return;
     } on GenericException catch (e) {
       await showErrorDialog(context: context, messege: e.code);
     } catch (e) {

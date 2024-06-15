@@ -1,6 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:date_time/date_time.dart';
 import 'package:flutter/cupertino.dart';
@@ -21,9 +22,13 @@ import 'package:mynotes_x/services/crud/crud_exceptions.dart';
 import 'package:mynotes_x/services/crud/notes_service.dart';
 import 'package:mynotes_x/services/notification_services/notification_service.dart';
 import 'package:mynotes_x/utilities/constants.dart';
-import 'package:mynotes_x/utilities/exception_dialog.dart';
+import 'package:mynotes_x/utilities/dialogs/cannot_share_dialog.dart';
+import 'package:mynotes_x/utilities/dialogs/exception_dialog.dart';
+import 'package:mynotes_x/utilities/list_display.dart';
 import 'package:provider/provider.dart';
 import 'dart:developer' as dev;
+
+import 'package:share_plus/share_plus.dart';
 
 class CreateUpdateNewNote extends StatefulWidget {
   final DatabaseUser? user;
@@ -42,9 +47,11 @@ class _CreateUpdateNewNoteState extends State<CreateUpdateNewNote> {
   DatabaseNotes? _notes;
   final RxString _imagePath = ''.obs;
   final RxInt _colorValue = 4278190080.obs;
-  bool _isList = false;
+  final RxInt _sliding = 1.obs;
+  final RxBool _isList = false.obs;
   final RxBool _setRemainder = false.obs;
   final RxBool _hasTag = false.obs;
+  bool _isImportantNote = false;
   bool _isSetRemainder = false;
   final RxString _time = ''.obs, _date = ''.obs;
   final RxString _repeat = ''.obs;
@@ -59,6 +66,7 @@ class _CreateUpdateNewNoteState extends State<CreateUpdateNewNote> {
   DateTime? _dateTime;
 
   final List<Map> _categories = [];
+  final List<TextEditingController> _controllerForCategories = [];
   final List<Map> _tagSuggestions = [];
   final List<Map> _weeks = [
     {
@@ -91,7 +99,7 @@ class _CreateUpdateNewNoteState extends State<CreateUpdateNewNote> {
     },
   ];
   List<DatabaseTagsForUser> _userTags = [];
-  final RxList<Map> _foundTags = [{}].obs;
+  final RxList<Map> _foundTags = <Map>[].obs;
 
   Future<void> _initView() async {
     final updatingNote = widget.note;
@@ -117,9 +125,9 @@ class _CreateUpdateNewNoteState extends State<CreateUpdateNewNote> {
         }
         dev.log(
             'date: ${updatingNote.date} ${updatingNote.time} ${updatingNote.repeatStatus}');
-        if (updatingNote.date != '' &&
-            updatingNote.time != '' &&
-            updatingNote.repeatStatus != '') {
+        if (updatingNote.date.isNotEmpty &&
+            updatingNote.time.isNotEmpty &&
+            updatingNote.repeatStatus.isNotEmpty) {
           _dateTime = DateTime.parse(updatingNote.date);
           _timeOfDay = TimeOfDay.fromDateTime(_dateTime!);
           _date.value = updatingNote.date;
@@ -131,6 +139,23 @@ class _CreateUpdateNewNoteState extends State<CreateUpdateNewNote> {
           dev.log('${_dateTime.toString()} \n ${_timeOfDay.toString()} ');
         }
         _colorValue.value = updatingNote.textColor;
+
+        if (updatingNote.hasList) {
+          _isList.value = true;
+          for (var obj in updatingNote.noteList!) {
+            _categories.add({
+              checkedTag: obj.checked,
+              textTag: obj.text,
+            });
+            final controller = TextEditingController();
+            controller.text = obj.text!;
+            _controllerForCategories.add(controller);
+          }
+        }
+
+        _isImportantNote = updatingNote.isImportant;
+        _sliding.value = _isImportantNote ? 0 : 1;
+
         final tagsList = await _notesService.getTagsForSpecificNote(
           user: widget.user!,
           note: updatingNote,
@@ -171,6 +196,9 @@ class _CreateUpdateNewNoteState extends State<CreateUpdateNewNote> {
       time: _time.value,
       date: _date.value,
       repeatStatus: _repeat.value,
+      hasList: _isList.value,
+      lists: jsonEncode(_categories),
+      important: _isImportantNote,
     );
   }
 
@@ -214,22 +242,25 @@ class _CreateUpdateNewNoteState extends State<CreateUpdateNewNote> {
     final note = _notes;
     final tittle = _tittleEditingController.text;
     final text = _textEditingController.text;
-    if (_categories.isEmpty) {
-      if (text.isEmpty && tittle.isEmpty && note != null) {
-        dev.log('entered delete: ${note.text} ${note.noteID}');
-        await _notesService.deleteNote(
-          id: note.noteID,
-        );
-      }
-    } else {}
+    if ((text.isEmpty &&
+        tittle.isEmpty &&
+        note != null &&
+        _categories.isEmpty)) {
+      dev.log('entered delete: ${note.text} ${note.noteID}');
+      await _notesService.deleteNote(
+        id: note.noteID,
+      );
+    }
   }
 
   void _saveIfTextExists() async {
     final note = _notes;
     final tittle = _tittleEditingController.text;
     final text = _textEditingController.text;
-    if ((text.isNotEmpty || tittle.isNotEmpty) && note != null) {
-      dev.log('from save exists : $_imagePath \n date: $_date');
+    if ((text.isNotEmpty || tittle.isNotEmpty || _categories.isNotEmpty) &&
+        note != null) {
+      dev.log(
+          'from save exists : $_imagePath \n date: $_date \n important: ${_isImportantNote.toString()}');
       await _notesService.updateNote(
         noteToBeUpdated: note,
         tittle: tittle,
@@ -239,6 +270,9 @@ class _CreateUpdateNewNoteState extends State<CreateUpdateNewNote> {
         time: _time.value,
         date: _date.value,
         repeatStatus: _repeat.value,
+        hasList: _isList.value,
+        lists: jsonEncode(_categories),
+        important: _isImportantNote,
       );
     }
   }
@@ -743,9 +777,7 @@ class _CreateUpdateNewNoteState extends State<CreateUpdateNewNote> {
               AlterDialogContentButton(
                 buttonText: notificationRepeatWeekly,
                 onPressed: () {
-                  setState(() {
-                    _repeat.value = notificationRepeatWeekly;
-                  });
+                  _repeat.value = notificationRepeatWeekly;
                   Navigator.of(context).pop();
                   showDialog(
                     context: context,
@@ -830,6 +862,7 @@ class _CreateUpdateNewNoteState extends State<CreateUpdateNewNote> {
     listNotifier.removeListener(_listener);
     listNotifier.items.clear();
     _categories.clear();
+    _controllerForCategories.clear();
     _tagSuggestions.clear();
     _foundTags.clear();
     _userTags.clear();
@@ -1029,6 +1062,10 @@ class _CreateUpdateNewNoteState extends State<CreateUpdateNewNote> {
                                                 listNotifier.addItem(value);
                                               } else {
                                                 listNotifier.removeItem(value);
+                                                if (listNotifier
+                                                    .items.isEmpty) {
+                                                  _hasTag.value = false;
+                                                }
                                                 if (widget.note != null) {
                                                   try {
                                                     await _notesService
@@ -1111,26 +1148,46 @@ class _CreateUpdateNewNoteState extends State<CreateUpdateNewNote> {
                       color: Theme.of(context).colorScheme.inversePrimary,
                     ),
                   ),
+                  Obx(
+                    () => IconButton(
+                      onPressed: () {
+                        _isList.value = !_isList.value;
+                      },
+                      icon: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: (!_isList.value
+                            ? Image.asset(
+                                'lib/images/list.png',
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .inversePrimary,
+                              )
+                            : Image.asset(
+                                'lib/images/cross.png',
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .inversePrimary,
+                              )),
+                      ),
+                    ),
+                  ),
                   IconButton(
-                    onPressed: () {
-                      setState(() {
-                        _isList = !_isList;
-                      });
+                    onPressed: () async {
+                      if (_notes != null &&
+                          _textEditingController.text.isNotEmpty) {
+                        Share.share(_textEditingController.text);
+                      } else if (_notes != null &&
+                          (_tittleEditingController.text.isNotEmpty ||
+                              _categories.isNotEmpty)) {
+                        Share.share(getAsList(_notes!.noteList!));
+                      } else {
+                        await showCannotShareEmptyNoteDialog(context);
+                      }
                     },
-                    icon: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: (!_isList
-                          ? Image.asset(
-                              'lib/images/list.png',
-                              color:
-                                  Theme.of(context).colorScheme.inversePrimary,
-                            )
-                          : Image.asset(
-                              'lib/images/cross.png',
-                              color:
-                                  Theme.of(context).colorScheme.inversePrimary,
-                            )),
+                    icon: Icon(
+                      CupertinoIcons.share,
+                      color: Theme.of(context).colorScheme.inversePrimary,
                     ),
                   ),
                 ],
@@ -1145,24 +1202,6 @@ class _CreateUpdateNewNoteState extends State<CreateUpdateNewNote> {
                 ),
                 onPressed: () async {
                   try {
-                    if (_isList) {
-                      dev.log('IS LIST!!!!!!!');
-                      String text = '';
-                      for (var i in _categories) {
-                        if ((i[controllerTag] as TextEditingController)
-                            .text
-                            .isNotEmpty) {
-                          text +=
-                              (i[controllerTag] as TextEditingController).text;
-                          text += ' ';
-                          text += (i[checkedTag] as bool).toString();
-                          text += '\n';
-                        } else {
-                          break;
-                        }
-                      }
-                      dev.log(text);
-                    }
                     if (_setRemainder.value) {
                       dev.log('IS REMAAINDER!!!!!!!');
                       if (_repeat.value == notificationNoRepeat) {
@@ -1170,7 +1209,7 @@ class _CreateUpdateNewNoteState extends State<CreateUpdateNewNote> {
                             .showNotification(
                           id: 0,
                           title: _tittleEditingController.text,
-                          payload: 'payload',
+                          payload: _notes!.noteID.toString(),
                           body: DateFormat('EEEE, d MMM, yyyy')
                               .format(_dateTime!),
                           scheduledDate: _dateTime!,
@@ -1180,7 +1219,7 @@ class _CreateUpdateNewNoteState extends State<CreateUpdateNewNote> {
                             .showNotificationDaily(
                           id: 0,
                           title: _tittleEditingController.text,
-                          payload: 'payload',
+                          payload: _notes!.noteID.toString(),
                           body: DateFormat('EEEE, d MMM, yyyy')
                               .format(_dateTime!),
                           scheduledDate: _dateTime!,
@@ -1212,7 +1251,7 @@ class _CreateUpdateNewNoteState extends State<CreateUpdateNewNote> {
                               .showNotificationWeekly(
                             id: 0,
                             title: _tittleEditingController.text,
-                            payload: 'payload',
+                            payload: _notes!.noteID.toString(),
                             body: DateFormat('EEEE, d MMM, yyyy')
                                 .format(_dateTime!),
                             scheduledDate: _dateTime!,
@@ -1260,6 +1299,54 @@ class _CreateUpdateNewNoteState extends State<CreateUpdateNewNote> {
                   child: Center(
                     child: Column(
                       children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Mark as important ?',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .inversePrimary,
+                                ),
+                              ),
+                              Obx(
+                                () => CupertinoSlidingSegmentedControl(
+                                  groupValue: _sliding.value,
+                                  onValueChanged: (value) {
+                                    _sliding.value = value!;
+                                    if (_sliding.value == 0) {
+                                      _isImportantNote = true;
+                                    } else {
+                                      _isImportantNote = false;
+                                    }
+                                  },
+                                  children: {
+                                    0: Icon(
+                                      Icons.check,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .inversePrimary,
+                                    ),
+                                    1: Icon(
+                                      Icons.cancel,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .inversePrimary,
+                                    ),
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(
+                          height: 10,
+                        ),
                         Obx(
                           () => (_imagePath.value.isNotEmpty
                               ? Stack(
@@ -1284,9 +1371,7 @@ class _CreateUpdateNewNoteState extends State<CreateUpdateNewNote> {
                                     ),
                                   ],
                                 )
-                              : const SizedBox(
-                                  height: 15,
-                                )),
+                              : const SizedBox.shrink()),
                         ),
                         const SizedBox(
                           height: 15,
@@ -1309,135 +1394,153 @@ class _CreateUpdateNewNoteState extends State<CreateUpdateNewNote> {
                         const SizedBox(
                           height: 10,
                         ),
-                        (!_isList
-                            ? Obx(
-                                () => MyTextField(
-                                  controller: _textEditingController,
-                                  autoCorrect: false,
-                                  keyboardType: TextInputType.multiline,
-                                  enableSuggestions: true,
-                                  obscureText: false,
-                                  hintText: 'Type your notes here...',
-                                  horizontalPadding: 10,
-                                  verticalPadding: 0,
-                                  maxLines: null,
-                                  textInputStyle: TextStyle(
-                                    color: Color(_colorValue.value),
+                        Obx(
+                          () => (!_isList.value
+                              ? Obx(
+                                  () => MyTextField(
+                                    controller: _textEditingController,
+                                    autoCorrect: false,
+                                    keyboardType: TextInputType.multiline,
+                                    enableSuggestions: true,
+                                    obscureText: false,
+                                    hintText: 'Type your notes here...',
+                                    horizontalPadding: 10,
+                                    verticalPadding: 0,
+                                    maxLines: null,
+                                    textInputStyle: TextStyle(
+                                      color: Color(_colorValue.value),
+                                    ),
                                   ),
-                                ),
-                              )
-                            : Column(
-                                children: [
-                                  Column(
-                                    children: _categories.asMap().entries.map(
-                                      (e) {
-                                        int index = e.key;
-                                        final value = e.value;
-                                        if (value[checkedTag] == false) {
-                                          return Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 16.0,
-                                            ),
-                                            child: TextFieldCheckBox(
-                                              favourite: value,
-                                              onPressed: () {
-                                                setState(() {
-                                                  (_categories[index]
-                                                              [controllerTag]
-                                                          as TextEditingController)
-                                                      .dispose();
-                                                  _categories.removeAt(index);
-                                                });
-                                              },
-                                              onChanged: (p0) {
-                                                setState(() {
-                                                  value[checkedTag] = p0!;
-                                                  if (value[checkedTag] ==
-                                                      true) {
-                                                    if ((value[controllerTag]
-                                                            as TextEditingController)
-                                                        .text
-                                                        .isEmpty) {
-                                                      _categories
-                                                          .removeAt(index);
+                                )
+                              : Column(
+                                  children: [
+                                    Column(
+                                      children: _categories.asMap().entries.map(
+                                        (e) {
+                                          int index = e.key;
+                                          Map value = e.value;
+                                          if (value[checkedTag] == false) {
+                                            return Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 16.0,
+                                              ),
+                                              child: TextFieldCheckBox(
+                                                favourite: value,
+                                                onPressed: () {
+                                                  setState(() {
+                                                    _controllerForCategories
+                                                        .removeAt(index);
+                                                    _categories.removeAt(index);
+                                                  });
+                                                },
+                                                onChanged: (p0) {
+                                                  setState(() {
+                                                    value[checkedTag] = p0!;
+                                                    if (value[checkedTag] ==
+                                                        true) {
+                                                      if (_controllerForCategories[
+                                                              index]
+                                                          .text
+                                                          .isEmpty) {
+                                                        _categories
+                                                            .removeAt(index);
+                                                        _controllerForCategories
+                                                            .removeAt(index);
+                                                      }
                                                     }
-                                                  }
-                                                });
-                                              },
-                                            ),
-                                          );
-                                        } else {
-                                          return const SizedBox.shrink();
-                                        }
-                                      },
-                                    ).toList(),
-                                  ),
-                                  TextButton(
-                                    style: ElevatedButton.styleFrom(
-                                      foregroundColor: Theme.of(context)
-                                          .colorScheme
-                                          .tertiary,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
+                                                  });
+                                                },
+                                                onChanged2: (p0) {
+                                                  value[textTag] = '';
+                                                  value[textTag] =
+                                                      _controllerForCategories[
+                                                              index]
+                                                          .text;
+                                                  dev.log(
+                                                      '$index: ${value[textTag]}');
+                                                },
+                                                controller:
+                                                    _controllerForCategories[
+                                                        index],
+                                              ),
+                                            );
+                                          } else {
+                                            return const SizedBox.shrink();
+                                          }
+                                        },
+                                      ).toList(),
                                     ),
-                                    onPressed: () {
-                                      setState(() {
-                                        _categories.add(
-                                          {
-                                            checkedTag: false,
-                                            controllerTag:
-                                                TextEditingController(),
-                                          },
-                                        );
-                                      });
-                                    },
-                                    child: Text(
-                                      '+ Add item',
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w400,
-                                        color: Theme.of(context)
+                                    TextButton(
+                                      style: ElevatedButton.styleFrom(
+                                        foregroundColor: Theme.of(context)
                                             .colorScheme
-                                            .inversePrimary
-                                            .withOpacity(0.5),
+                                            .tertiary,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                        ),
+                                      ),
+                                      onPressed: () {
+                                        setState(() {
+                                          _categories.add(
+                                            {
+                                              checkedTag: false,
+                                              textTag: '',
+                                            },
+                                          );
+                                          _controllerForCategories
+                                              .add(TextEditingController());
+                                        });
+                                      },
+                                      child: Text(
+                                        '+ Add item',
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w400,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .inversePrimary
+                                              .withOpacity(0.5),
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  Column(
-                                    children: _categories.asMap().entries.map(
-                                      (e) {
-                                        final value = e.value;
-                                        if (value[checkedTag] == true) {
-                                          return Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 16.0,
-                                            ),
-                                            child: TextWithCheckBox(
-                                              value: value,
-                                              textLeftPadding: 20,
-                                              onChanged: (p0) {
-                                                setState(() {
-                                                  value[checkedTag] = p0!;
-                                                });
-                                              },
-                                              index: controllerTag,
-                                              secondaryIndex: checkedTag,
-                                              isMainIndexController: true,
-                                              icon: false,
-                                              textDecoration:
-                                                  TextDecoration.lineThrough,
-                                              fontSize: 14.3,
-                                            ),
-                                          );
-                                        } else {
-                                          return const SizedBox.shrink();
-                                        }
-                                      },
-                                    ).toList(),
-                                  ),
-                                ],
-                              )),
+                                    Column(
+                                      children: _categories.asMap().entries.map(
+                                        (e) {
+                                          final value = e.value;
+                                          if (value[checkedTag] == true) {
+                                            return Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 16.0,
+                                              ),
+                                              child: TextWithCheckBox(
+                                                value: value,
+                                                textLeftPadding: 20,
+                                                onChanged: (p0) {
+                                                  setState(() {
+                                                    value[checkedTag] = p0!;
+                                                  });
+                                                },
+                                                index: textTag,
+                                                secondaryIndex: checkedTag,
+                                                isMainIndexController: false,
+                                                icon: false,
+                                                textDecoration:
+                                                    TextDecoration.lineThrough,
+                                                fontSize: 14.3,
+                                              ),
+                                            );
+                                          } else {
+                                            return const SizedBox.shrink();
+                                          }
+                                        },
+                                      ).toList(),
+                                    ),
+                                  ],
+                                )),
+                        ),
                         const SizedBox(
                           height: 30,
                         ),

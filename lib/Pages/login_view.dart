@@ -1,14 +1,16 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'package:flutter/material.dart';
+import 'package:mynotes_x/Pages/password_reset.dart';
 import 'package:mynotes_x/components/my_button.dart';
 import 'package:mynotes_x/components/my_text_field.dart';
 import 'package:mynotes_x/components/square_tile.dart';
+import 'package:mynotes_x/helpers/loading/loading_screen.dart';
 import 'package:mynotes_x/services/auth/auth_exceptions.dart';
 import 'package:mynotes_x/services/auth/auth_service.dart';
 import 'package:mynotes_x/services/facebook_auth/facebook_auth_service.dart';
 import 'package:mynotes_x/services/google_auth/google_auth_service.dart';
-import 'package:mynotes_x/utilities/error_dialog.dart';
+import 'package:mynotes_x/utilities/dialogs/error_dialog.dart';
 
 class LoginView extends StatefulWidget {
   final void Function()? onTap;
@@ -23,67 +25,21 @@ class _LoginViewState extends State<LoginView> {
   late final TextEditingController _password;
   bool obscureText = true;
 
-  void showCircularProgressIndicator(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return Container(
-          margin: const EdgeInsets.symmetric(
-            horizontal: 80.0,
-            vertical: 330.0,
-          ),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.inversePrimary,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Center(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircularProgressIndicator(
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(
-                  width: 10,
-                ),
-                Text(
-                  'Loading...',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontSize: 16,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   signInWithEmailAndPassword() async {
-    showCircularProgressIndicator(context);
+    LoadingScreen().show(context: context, text: 'Loading...');
     try {
       await AuthService.firebase()
           .logIn(email: _email.text, password: _password.text);
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
+
+      LoadingScreen().hide();
     } on UserNotLoggedInException catch (e) {
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
-      //ignore async context
+      LoadingScreen().hide();
       await showErrorDialog(context: context, messege: e.code);
     } on GenericException catch (e) {
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
+      LoadingScreen().hide();
       await showErrorDialog(context: context, messege: e.code);
     } catch (e) {
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
+      LoadingScreen().hide();
       await showErrorDialog(
           context: context,
           messege: 'Not from own class exceptions: ${e.toString()}');
@@ -91,32 +47,22 @@ class _LoginViewState extends State<LoginView> {
   }
 
   signInWithGoogle() async {
-    showCircularProgressIndicator(context);
+    LoadingScreen().show(context: context, text: 'Loading...');
     try {
       await GAuthService.firebase().signIn();
 
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
+      LoadingScreen().hide();
     } on NoEmailChoosenException {
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
+      LoadingScreen().hide();
       return;
     } on UserNotLoggedInException catch (e) {
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
+      LoadingScreen().hide();
       await showErrorDialog(context: context, messege: e.code);
     } on GenericException catch (e) {
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
+      LoadingScreen().hide();
       await showErrorDialog(context: context, messege: e.code);
     } catch (e) {
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
+      LoadingScreen().hide();
       await showErrorDialog(
           context: context,
           messege: 'not from own class exceptions: ${e.toString()}');
@@ -126,6 +72,8 @@ class _LoginViewState extends State<LoginView> {
   void signInWithFacebook() async {
     try {
       await FAuthService.firebase().logIn();
+    } on NoAccountChoosenException {
+      return;
     } on GenericException catch (e) {
       await showErrorDialog(context: context, messege: e.code);
     } catch (e) {
@@ -230,12 +178,37 @@ class _LoginViewState extends State<LoginView> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      Text(
-                        'forgot password?',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.inversePrimary,
+                      InkWell(
+                        borderRadius: BorderRadius.circular(8),
+                        onTap: () {
+                          if (_email.text.isNotEmpty) {
+                            AuthService.firebase()
+                                .sendPasswordResetEmail(_email.text);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const PasswordResetView(),
+                              ),
+                            );
+                          } else {
+                            showErrorDialog(
+                                context: context,
+                                messege: 'Email field is empty');
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 5,
+                          ),
+                          child: Text(
+                            'forgot password?',
+                            style: TextStyle(
+                              color:
+                                  Theme.of(context).colorScheme.inversePrimary,
+                            ),
+                          ),
                         ),
-                      ),
+                      )
                     ],
                   ),
                 ),

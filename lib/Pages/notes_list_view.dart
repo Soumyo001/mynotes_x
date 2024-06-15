@@ -21,6 +21,14 @@ class NotesListView extends StatefulWidget {
 }
 
 class _NotesListViewState extends State<NotesListView> {
+  late final NotesService _notesService;
+
+  @override
+  void initState() {
+    _notesService = NotesService();
+    super.initState();
+  }
+
   @override
   Widget build(BuildContext context) {
     return MasonryGridView.builder(
@@ -33,11 +41,22 @@ class _NotesListViewState extends State<NotesListView> {
         return NoteTile(
           index: index,
           note: note,
+          hasBookmarkFunctionalities: true,
           onEditTap: () {
             widget.editCallBack(note);
           },
           onDeleteTap: () {
             widget.deleteCallBack(note);
+          },
+          isBookmarkTapped: note.isBookmarked,
+          onBookmarkTap: () async {
+            setState(() {
+              note.isBookmarked = !note.isBookmarked;
+            });
+            await _notesService.updateNoteBookmark(
+              note: note,
+              isBookmarked: note.isBookmarked,
+            );
           },
         );
       },

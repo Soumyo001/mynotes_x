@@ -56,8 +56,9 @@ class _UserTagsState extends State<UserTags> {
                     snapshot.data as List<DatabaseTagsForUser>;
                 return Center(
                   child: TagsListView(
+                    user: widget.user!,
                     tags: tags,
-                    onDeleteCallback: (databaseTagsForUser) async {
+                    onDeleteCallBack: (databaseTagsForUser) async {
                       await _notesService.deleteTag(
                         user: widget.user!,
                         databaseTagsForUser: databaseTagsForUser,
